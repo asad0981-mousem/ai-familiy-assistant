@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+build/
+.gradle/
+.dart_tool/
+build/
