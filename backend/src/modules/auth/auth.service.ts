@@ -82,10 +82,13 @@ export class AuthService {
   }
 
   private async issueTokens(user: User): Promise<AuthTokens> {
+    // UserRole (enum دیتابیس) و JwtRole (نوع رشته‌ای توکن، شامل "device" هم) عمداً دو نوع جدا هستند؛
+    // تبدیل صریح به‌جای cast کور، تا هر عضو جدید UserRole در آینده بدون بررسی اینجا فراموش نشود.
+    const role: JwtPayload["role"] = user.role === UserRole.PARENT ? "parent" : "child";
     const payload: JwtPayload = {
       sub: user.id,
       familyId: user.familyId,
-      role: user.role,
+      role,
     };
 
     const accessToken = await this.jwt.signAsync(payload, {

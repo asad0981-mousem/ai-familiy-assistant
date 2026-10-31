@@ -3,10 +3,12 @@ import { PassportStrategy } from "@nestjs/passport";
 import { ConfigService } from "@nestjs/config";
 import { ExtractJwt, Strategy } from "passport-jwt";
 
+export type JwtRole = "parent" | "child" | "device";
+
 export interface JwtPayload {
-  sub: string; // user id
+  sub: string; // user id (یا device id برای role=device)
   familyId: string;
-  role: "parent" | "child";
+  role: JwtRole;
 }
 
 /**
