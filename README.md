@@ -21,9 +21,12 @@ docs/             مستندات فازهای ۱ تا ۱۲ (SRS تا Final Bluep
 | بک‌اند — Auth (ثبت‌نام/ورود والد، JWT) | ✅ کد کامل نوشته شده؛ Migration روی DB واقعی اجرا و تست شد |
 | بک‌اند — Family/User Core | ✅ کد کامل؛ Schema تست‌شده با Insert واقعی |
 | بک‌اند — AI Tutor (Provider Abstraction + Fallback + Memory ۴‌سطحی + Safety جدا) | ✅ کد کامل نوشته شده؛ **اجرای end-to-end تست نشده** (نیازمند `npm install` که در Sandbox فعلی به‌دلیل مسدودبودن npm registry ممکن نیست) |
+| بک‌اند — Device/Command Matrix (۱۲ نوع دستور، Outbox، امضای HMAC) | ✅ کد کامل؛ Schema+Idempotency Constraint با Insert واقعی تست شد |
+| بک‌اند — Location (Consent Gate + AES-256-GCM) | ✅ کد کامل؛ منطق رمزنگاری/Tamper-detection با Node.js خالص تست شد؛ Schema+FK با Insert واقعی تست شد |
 | Device Agent (اندروید) | ❌ شروع نشده |
 | اپ‌های Flutter | ❌ شروع نشده |
 | CI/CD | ❌ شروع نشده |
+| Policy Engine (سیگنال لغو Consent به Device Agent) | ❌ آیتم باز — شناسایی‌شده در ماژول Location |
 
 ## اجرای محلی (روی ماشینی با دسترسی اینترنت کامل)
 
