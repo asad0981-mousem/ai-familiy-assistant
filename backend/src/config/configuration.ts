@@ -30,6 +30,10 @@ export interface AppConfig {
     openaiApiKey?: string;
     anthropicApiKey?: string;
   };
+  location: {
+    encryptionKey: string;
+    rawRetentionDays: number;
+  };
 }
 
 export default (): AppConfig => ({
@@ -59,5 +63,9 @@ export default (): AppConfig => ({
     fallbackProvider: process.env.AI_FALLBACK_PROVIDER || "anthropic",
     openaiApiKey: process.env.OPENAI_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+  },
+  location: {
+    encryptionKey: process.env.LOCATION_ENCRYPTION_KEY || "",
+    rawRetentionDays: parseInt(process.env.LOCATION_RAW_RETENTION_DAYS || "90", 10),
   },
 });

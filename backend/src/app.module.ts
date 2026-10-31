@@ -8,6 +8,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
 import { AiTutorModule } from "./modules/ai-tutor/ai-tutor.module";
 import { DevicesModule } from "./modules/devices/devices.module";
+import { LocationsModule } from "./modules/locations/locations.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -33,6 +34,7 @@ import { HealthController } from "./health.controller";
     UsersModule,
     AiTutorModule,
     DevicesModule,
+    LocationsModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
