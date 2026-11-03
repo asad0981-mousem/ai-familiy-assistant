@@ -50,11 +50,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: backend/package-lock.json
+          # توجه: cache: npm عمداً فعال نیست — هنوز package-lock.json در ریپو کامیت نشده
+          # (چون npm install هرگز در محیط توسعه قابل اجرا نبود). بعد از اولین اجرای موفق این CI،
+          # می‌توان lock file تولیدشده را کامیت کرد و cache را دوباره فعال کرد.
 
       - name: Install dependencies
         run: npm install
+
+      - name: Upload package-lock.json (برای کامیت دستی بعدی و فعال‌سازی cache)
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: backend/package-lock.json
+          retention-days: 14
 
       - name: Lint
         run: npm run lint
