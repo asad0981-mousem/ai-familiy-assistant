@@ -21,10 +21,15 @@ export enum MemoryLevel {
 @Entity({ name: "ai_memories" })
 @Index(["familyId", "childId", "level"])
 export class AiMemory extends BaseEntity {
-  @Column({ name: "family_id" })
+  @Column({ name: "family_id", type: "uuid" })
   familyId!: string;
 
-  @Column({ name: "child_id", nullable: true })
+  /**
+   * نوع ستون عمداً صریح (type: "uuid") نوشته شده — بدون آن، TypeORM/reflect-metadata نوع
+   * یونیون "string | null" را به‌جای String به‌صورت Object تشخیص می‌دهد و Migration با
+   * DataTypeNotSupportedError شکست می‌خورد (این باگ واقعی در اولین اجرای CI پیدا و رفع شد).
+   */
+  @Column({ name: "child_id", type: "uuid", nullable: true })
   childId?: string | null; // null مجاز فقط برای FAMILY_CONTEXT
 
   @Column({ name: "level", type: "enum", enum: MemoryLevel })
