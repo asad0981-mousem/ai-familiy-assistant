@@ -1,0 +1,84 @@
+name: Backend CI
+
+# به‌ازای هر push/PR روی backend/، وابستگی‌ها را واقعاً نصب و پروژه را کامپایل می‌کند.
+# این همان تاییدی است که در محیط توسعه (Sandbox بدون دسترسی npm registry) ممکن نبود.
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: aifamily
+          POSTGRES_PASSWORD: aifamily_ci_password
+          POSTGRES_DB: aifamily_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aifamily -d aifamily_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true # فعلاً فقط گزارش می‌دهد؛ بعد از پایدارشدن باید Blocking شود
+
+      - name: Build (TypeScript compile)
+        run: npm run build
+
+      - name: Enable pgvector extension
+        run: |
+          PGPASSWORD=aifamily_ci_password psql -h localhost -U aifamily -d aifamily_ci -c "CREATE EXTENSION IF NOT EXISTS vector;"
+        env:
+          PGPASSWORD: aifamily_ci_password
+
+      - name: Run migrations against CI database
+        run: npm run migration:run
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: aifamily
+          DB_PASSWORD: aifamily_ci_password
+          DB_DATABASE: aifamily_ci
+          NODE_ENV: test
+
+      - name: Unit tests
+        run: npm run test
+        continue-on-error: true # فعلاً تست خودکار نوشته نشده (آیتم باز مستندشده)؛ وقتی اضافه شد Blocking شود
