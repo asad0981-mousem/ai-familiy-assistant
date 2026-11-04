@@ -89,4 +89,18 @@ jobs:
 
       - name: Unit tests
         run: npm run test
-        continue-on-error: true # فعلاً تست خودکار نوشته نشده (آیتم باز مستندشده)؛ وقتی اضافه شد Blocking شود
+        # Blocking از همین Commit به بعد — تست‌های واقعی CommandSignerService/FieldEncryptionService اضافه شدند
+
+      - name: E2E tests (Security invariants — Consent Gate, Cross-Family IDOR, Command rules)
+        run: npm run test:e2e
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: aifamily
+          DB_PASSWORD: aifamily_ci_password
+          DB_DATABASE: aifamily_ci
+          NODE_ENV: test
+          JWT_ACCESS_SECRET: ci-test-only-access-secret-not-for-prod-use
+          JWT_ACCESS_EXPIRES_IN: 15m
+          JWT_REFRESH_SECRET: ci-test-only-refresh-secret-not-for-prod-use
+          JWT_REFRESH_EXPIRES_IN: 30d
