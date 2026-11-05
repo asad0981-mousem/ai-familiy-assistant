@@ -101,15 +101,56 @@ export class DevicesService {
       );
     }
 
-    const payload = dto.payload || {};
+    return this.enqueueSignedCommand(
+      requester.familyId,
+      deviceId,
+      requester.sub,
+      dto.type,
+      dto.payload || {},
+    );
+  }
+
+  /**
+   * ایجاد دستور سیستمی (نه مستقیماً توسط والد از طریق API، بلکه توسط یک ماژول دیگر — مثلاً
+   * PoliciesService یا LocationsService — در واکنش به یک رویداد) برای تمام دستگاه‌های فعال یک کودک.
+   * issuedByUserId همچنان همان کاربری است که رویداد اصلی (مثلاً لغو Consent) را انجام داده —
+   * برای Audit Trail صحیح، نه یک "کاربر سیستمی" گمنام.
+   */
+  async enqueueCommandForChild(
+    familyId: string,
+    childId: string,
+    issuedByUserId: string,
+    type: CommandType,
+    payload: Record<string, unknown>,
+  ): Promise<DeviceCommand[]> {
+    const activeDevices = await this.devices.find({
+      where: { familyId, childId, status: DeviceStatus.ACTIVE },
+    });
+
+    const results: DeviceCommand[] = [];
+    for (const device of activeDevices) {
+      results.push(
+        await this.enqueueSignedCommand(familyId, device.id, issuedByUserId, type, payload),
+      );
+    }
+    return results;
+  }
+
+  private async enqueueSignedCommand(
+    familyId: string,
+    deviceId: string,
+    issuedByUserId: string,
+    type: CommandType,
+    payload: Record<string, unknown>,
+  ): Promise<DeviceCommand> {
     const idempotencyKey = randomUUID();
-    const signaturePayload = { deviceId, type: dto.type, payload, idempotencyKey };
+    const signaturePayload = { deviceId, type, payload, idempotencyKey };
 
     const command = this.commands.create({
-      familyId: requester.familyId,
+      familyId,
       deviceId,
-      issuedByUserId: requester.sub,
-      type: dto.type,
+      issuedByUserId,
+      type,
       payload,
       status: CommandStatus.QUEUED,
       idempotencyKey,

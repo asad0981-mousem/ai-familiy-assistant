@@ -13,6 +13,7 @@ import { ReportLocationDto } from "./dto/report-location.dto";
 import { SetConsentDto } from "./dto/set-consent.dto";
 import { JwtPayload } from "../auth/strategies/jwt.strategy";
 import { FieldEncryptionService } from "../../common/crypto/field-encryption.service";
+import { PoliciesService } from "../policies/policies.service";
 
 export interface DecryptedLocation {
   id: string;
@@ -31,6 +32,7 @@ export class LocationsService {
     private readonly consents: Repository<LocationConsent>,
     @InjectRepository(Device) private readonly devices: Repository<Device>,
     private readonly encryption: FieldEncryptionService,
+    private readonly policiesService: PoliciesService,
   ) {}
 
   /** فقط والد می‌تواند رضایت موقعیت مکانی را اعطا/لغو کند — طبق فصل ۱۰/۱۲. */
@@ -69,9 +71,14 @@ export class LocationsService {
 
     active.revokedAt = new Date();
     await this.consents.save(active);
-    // نکته: لغو رضایت باید بلافاصله به Device Agent هم ابلاغ شود (از طریق یک Command یا Policy Sync)
-    // تا جمع‌آوری محلی هم متوقف شود، نه فقط رد درخواست سمت سرور. این Orchestration در DevicesService
-    // هنوز سیم‌کشی نشده — آیتم باز برای ماژول بعدی (Policy Engine).
+
+    // ابلاغ فوری به Device Agent (نه فقط رد درخواست‌های بعدی سمت سرور) — آیتم باز قبلی،
+    // اکنون با PoliciesService.notifyLocationConsentRevoked بسته شد (SYNC_POLICY صف می‌شود).
+    await this.policiesService.notifyLocationConsentRevoked(
+      requester.familyId,
+      dto.childId,
+      requester.sub,
+    );
   }
 
   /**

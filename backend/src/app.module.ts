@@ -9,6 +9,7 @@ import { UsersModule } from "./modules/users/users.module";
 import { AiTutorModule } from "./modules/ai-tutor/ai-tutor.module";
 import { DevicesModule } from "./modules/devices/devices.module";
 import { LocationsModule } from "./modules/locations/locations.module";
+import { PoliciesModule } from "./modules/policies/policies.module";
 import { HealthController } from "./health.controller";
 
 @Module({
@@ -35,6 +36,7 @@ import { HealthController } from "./health.controller";
     AiTutorModule,
     DevicesModule,
     LocationsModule,
+    PoliciesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

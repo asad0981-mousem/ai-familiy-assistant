@@ -6,9 +6,10 @@ import { Device } from "../devices/entities/device.entity";
 import { LocationsService } from "./locations.service";
 import { LocationsController } from "./locations.controller";
 import { FieldEncryptionService } from "../../common/crypto/field-encryption.service";
+import { PoliciesModule } from "../policies/policies.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Location, LocationConsent, Device])],
+  imports: [TypeOrmModule.forFeature([Location, LocationConsent, Device]), PoliciesModule],
   providers: [LocationsService, FieldEncryptionService],
   controllers: [LocationsController],
   exports: [LocationsService],
