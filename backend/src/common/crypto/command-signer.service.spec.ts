@@ -11,7 +11,10 @@ describe("CommandSignerService", () => {
         CommandSignerService,
         {
           provide: ConfigService,
-          useValue: { get: () => "test-signing-secret-at-least-32-chars" },
+          useValue: {
+            get: (key: string) =>
+              key === "commandSigning.secret" ? "test-signing-secret-at-least-32-chars" : undefined,
+          },
         },
       ],
     }).compile();
@@ -41,5 +44,32 @@ describe("CommandSignerService", () => {
   it("امضای جعلی/کوتاه را رد می‌کند بدون خطا", () => {
     const payload = { deviceId: "d1", type: "lock_device" };
     expect(signer.verify(payload, "not-a-real-signature")).toBe(false);
+  });
+
+  it("امضا مستقل از ترتیب کلیدهای داخل payload تودرتو است (Deep Canonical JSON)", () => {
+    // شبیه‌سازی سناریوی واقعی: شیء زمان امضا با یک ترتیب کلید ساخته می‌شود، اما همان داده بعداً
+    // از ستون jsonb پایگاه‌داده خوانده و به‌صورت شیء جدید با ترتیب کلید متفاوت بازسازی می‌شود —
+    // Device Agent باید بتواند امضای اصلی را روی هر دو شکل با موفقیت تایید کند.
+    const original = {
+      deviceId: "d1",
+      type: "sync_policy",
+      idempotencyKey: "k1",
+      payload: { reason: "policy_updated", policyVersion: 3 },
+    };
+    const rehydratedFromDb = {
+      payload: { policyVersion: 3, reason: "policy_updated" }, // ترتیب کلید معکوس
+      idempotencyKey: "k1",
+      deviceId: "d1",
+      type: "sync_policy",
+    };
+
+    const signature = signer.sign(original);
+    expect(signer.verify(rehydratedFromDb, signature)).toBe(true);
+  });
+
+  it("ترتیب عناصر آرایه معنادار است — جابه‌جایی عناصر امضا را نامعتبر می‌کند", () => {
+    const a = { deviceId: "d1", blockedApps: ["com.a", "com.b"] };
+    const b = { deviceId: "d1", blockedApps: ["com.b", "com.a"] };
+    expect(signer.sign(a)).not.toBe(signer.sign(b));
   });
 });

@@ -104,3 +104,4 @@ jobs:
           JWT_ACCESS_EXPIRES_IN: 15m
           JWT_REFRESH_SECRET: ci-test-only-refresh-secret-not-for-prod-use
           JWT_REFRESH_EXPIRES_IN: 30d
+          COMMAND_SIGNING_SECRET: ci-test-only-command-signing-secret-not-for-prod

@@ -34,6 +34,9 @@ export interface AppConfig {
     encryptionKey: string;
     rawRetentionDays: number;
   };
+  commandSigning: {
+    secret: string;
+  };
 }
 
 export default (): AppConfig => ({
@@ -67,5 +70,12 @@ export default (): AppConfig => ({
   location: {
     encryptionKey: process.env.LOCATION_ENCRYPTION_KEY || "",
     rawRetentionDays: parseInt(process.env.LOCATION_RAW_RETENTION_DAYS || "90", 10),
+  },
+  // کلید جدا از jwt.accessSecret — قبلاً به‌اشتباه از همان Secret توکن JWT استفاده می‌شد (باگ امنیتی
+  // واقعی: هر Device Agent که این کلید را برای تایید امضای دستور نگه می‌داشت، عملاً کلید جعل JWT
+  // سرور را هم در اختیار داشت). این مقدار باید به Device Agent داده شود، نه jwt.accessSecret.
+  // مسیر ارتقای نهایی مستندشده (Ed25519 غیرمتقارن) همان COMMAND_SIGNING_PRIVATE/PUBLIC_KEY است.
+  commandSigning: {
+    secret: process.env.COMMAND_SIGNING_SECRET || "insecure-dev-only-command-signing-secret",
   },
 });
