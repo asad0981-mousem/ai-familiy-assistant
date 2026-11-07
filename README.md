@@ -25,13 +25,21 @@ Lint، کامپایل TypeScript، `CREATE EXTENSION vector` روی PostgreSQL �
 | زیرساخت محلی (Postgres+Redis) | ✅ کار می‌کند؛ pgvector در CI واقعی تایید شده (فقط در Sandbox توسعه این جلسه نصب نشد) |
 | بک‌اند — Auth (ثبت‌نام/ورود والد، JWT) | ✅ Migration + تست E2E واقعی تایید شد |
 | بک‌اند — Family/User Core | ✅ Migration + تست E2E واقعی تایید شد |
-| بک‌اند — AI Tutor (Provider Abstraction + Fallback + Memory ۴‌سطحی + Safety جدا) | ✅ کامپایل و Migration تایید شد؛ تست E2E اختصاصی هنوز نوشته نشده (آیتم باز) |
+| بک‌اند — AI Tutor (Provider Abstraction + Fallback + Memory ۴‌سطحی + Safety جدا) | ✅ Migration + تست E2E واقعی تایید شد (جداسازی Safety Agent، Fallback واقعی openai→anthropic، Tenant Isolation مکالمه، نشت‌نکردن حافظه بین خانواده‌ها) |
 | بک‌اند — Device/Command Matrix (۱۲ نوع دستور، Outbox، امضای HMAC) | ✅ Migration + تست E2E (Idempotency، قفل WIPE_DATA) واقعی تایید شد |
 | بک‌اند — Location (Consent Gate + AES-256-GCM) | ✅ Migration + تست E2E (رد/تایید/لغو Consent، مقدار رمزگشایی‌شده صحیح) واقعی تایید شد |
 | بک‌اند — Policy Engine (Optimistic Locking، SYNC_POLICY خودکار) | ✅ Migration + تست E2E (ادغام جزئی Rules، ۴۰۹ روی نسخه نادرست، ابلاغ خودکار لغو Consent) واقعی تایید شد |
-| تست خودکار Unit/E2E | ✅ ۱۴+ تست سبز در CI (رمزنگاری، امضا، IDOR، Consent Gate، Policy) |
+| تست خودکار Unit/E2E | ✅ ۲۰+ تست سبز در CI (رمزنگاری، امضا، IDOR، Consent Gate، Policy، AI Tutor) |
 | Device Agent (اندروید) | ❌ شروع نشده |
 | اپ‌های Flutter | ❌ شروع نشده |
+
+### آیتم باز شناخته‌شده: ورود واقعی کودک (Child Login)
+
+در کدبیس فعلی، مسیر ورود کودک (PIN/QR همراه Device Agent) طبق طراحی فصل ۸/۹ هنوز پیاده‌سازی نشده —
+فقط ثبت‌نام/ورود والد (`/auth/register`, `/auth/login`) پیاده‌سازی شده است. تست‌های E2E مربوط به
+AI Tutor توکن کودک را با همان قرارداد Payload واقعی (`sub`/`familyId`/`role: "child"`) و Secret واقعی
+برنامه صادر می‌کنند تا تا پیاده‌سازی این مسیر، رفتار Guard/Service به‌طور صادقانه آزموده شود. این آیتم
+باید همزمان با شروع Device Agent اندروید پیاده‌سازی شود.
 
 ## اجرای محلی (روی ماشینی با دسترسی اینترنت کامل)
 

@@ -91,7 +91,7 @@ jobs:
         run: npm run test
         # Blocking از همین Commit به بعد — تست‌های واقعی CommandSignerService/FieldEncryptionService اضافه شدند
 
-      - name: E2E tests (Security invariants — Consent Gate, Cross-Family IDOR, Command rules)
+      - name: E2E tests (Security invariants, Policy Engine, AI Tutor — Safety/Fallback/Memory Isolation)
         run: npm run test:e2e
         env:
           DB_HOST: localhost
