@@ -72,4 +72,22 @@ describe("CommandSignerService", () => {
     const b = { deviceId: "d1", blockedApps: ["com.b", "com.a"] };
     expect(signer.sign(a)).not.toBe(signer.sign(b));
   });
+
+  /**
+   * تست مقدار طلایی (Golden Value) — همان secret/payload/امضای دقیقی که در
+   * device-agent/.../CommandSignerTest.kt برای تایید سازگاری بین پیاده‌سازی TypeScript (سرور)
+   * و Kotlin (Device Agent) استفاده شده. اگر این تست اینجا قرمز شود ولی تست Kotlin سبز بماند
+   * (یا برعکس)، یعنی دو پیاده‌سازی از هم واگرا شده‌اند — دقیقاً همان باگی که این تست باید بگیرد.
+   */
+  it("مقدار طلایی سازگار با پیاده‌سازی Kotlin — Golden Value Cross-Language", () => {
+    const payload = {
+      deviceId: "11111111-1111-1111-1111-111111111111",
+      type: "sync_policy",
+      idempotencyKey: "22222222-2222-2222-2222-222222222222",
+      payload: { reason: "policy_updated", policyVersion: 3, blockedApps: ["com.a", "com.b"] },
+    };
+    const signature = signer.sign(payload);
+    expect(signature).toBe("8a4e424de4662c65ef250842771f5be7bde259d51537339da48c81b879f39974");
+    expect(signature).toHaveLength(64);
+  });
 });

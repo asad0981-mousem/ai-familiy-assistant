@@ -8,7 +8,7 @@
 backend/         NestJS Modular Monolith — فاز ۴/۵/۲۰ Blueprint
 mobile-child/     اپ Flutter کودک (برنامه‌ریزی‌شده — هنوز شروع نشده)
 mobile-parent/    اپ Flutter والد (برنامه‌ریزی‌شده — هنوز شروع نشده)
-device-agent/     Device Agent اندروید Native (برنامه‌ریزی‌شده — هنوز شروع نشده)
+device-agent/     Device Agent اندروید Native (Kotlin) — شروع شده، MVP بدون Device Owner Mode
 infra/            Docker Compose و پیکربندی زیرساخت
 docs/             مستندات فازهای ۱ تا ۱۲ (SRS تا Final Blueprint)
 ```
@@ -30,7 +30,7 @@ Lint، کامپایل TypeScript، `CREATE EXTENSION vector` روی PostgreSQL �
 | بک‌اند — Location (Consent Gate + AES-256-GCM) | ✅ Migration + تست E2E (رد/تایید/لغو Consent، مقدار رمزگشایی‌شده صحیح) واقعی تایید شد |
 | بک‌اند — Policy Engine (Optimistic Locking، SYNC_POLICY خودکار) | ✅ Migration + تست E2E (ادغام جزئی Rules، ۴۰۹ روی نسخه نادرست، ابلاغ خودکار لغو Consent) واقعی تایید شد |
 | تست خودکار Unit/E2E | ✅ ۲۰+ تست سبز در CI (رمزنگاری، امضا، IDOR، Consent Gate، Policy، AI Tutor) |
-| Device Agent (اندروید) | ❌ شروع نشده |
+| Device Agent (اندروید) | 🟡 MVP شروع شد — Outbox Pull Pattern + تایید HMAC محلی + CI (`./gradlew test`+`assembleDebug`) واقعی تایید می‌شود؛ بدون Device Owner Mode (جزئیات در `device-agent/README.md`) |
 | اپ‌های Flutter | ❌ شروع نشده |
 
 ### آیتم باز شناخته‌شده: ورود واقعی کودک (Child Login)

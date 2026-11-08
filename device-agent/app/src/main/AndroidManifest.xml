@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!--
+        توجه صادقانه: دستوراتی مثل LOCK_DEVICE/BLOCK_APP/WIPE_DATA نیازمند Device Owner Mode
+        (از طریق android.app.admin.DeviceAdminReceiver + Provisioning) هستند که در این نسخه
+        هنوز اضافه نشده — به همین دلیل مجوزها/Receiver مربوط به Device Admin اینجا دیده نمی‌شود.
+        افزودن آن آیتم باز بعدی مستندشده در README این پوشه است.
+    -->
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.DeviceAgent"
+        android:usesCleartextTraffic="true">
+        <!--
+            usesCleartextTraffic=true فقط برای راحتی توسعه/تست محلی (http://10.0.2.2) است.
+            در Build واقعی Production باید حذف شود و فقط HTTPS مجاز باشد (networkSecurityConfig).
+        -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".EnrollmentActivity"
+            android:exported="false" />
+
+    </application>
+</manifest>

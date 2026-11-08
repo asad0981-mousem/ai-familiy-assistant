@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI Family — Device Agent</string>
+    <string name="enrollment_title">اتصال دستگاه به خانواده</string>
+    <string name="api_base_url_hint">آدرس سرور (مثلاً https://api.example.com/api/v1/)</string>
+    <string name="device_token_hint">کد اتصال دستگاه (از اپ والد)</string>
+    <string name="enroll_button">اتصال</string>
+    <string name="enrollment_missing_fields">آدرس سرور و کد اتصال را وارد کنید</string>
+    <string name="enrollment_success">اتصال با موفقیت انجام شد</string>
+    <string name="already_enrolled">این دستگاه قبلاً متصل شده است</string>
+    <string name="agent_running">در حال اجرا — متصل به %1$s</string>
+    <string name="unenroll_button">قطع اتصال دستگاه</string>
+</resources>
