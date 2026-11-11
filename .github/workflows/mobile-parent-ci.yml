@@ -1,0 +1,42 @@
+name: Mobile Parent CI
+
+# به‌ازای هر push/PR روی mobile-parent/، وابستگی‌های pub.dev را واقعاً Resolve، flutter analyze
+# (بررسی کامل نوع‌ها/Lint) و flutter test (شامل تست‌های واقعی ApiClient با MockClient روی قرارداد
+# دقیق DTO های بک‌اند) را اجرا می‌کند — همان تاییدی که در Sandbox توسعه (بدون دسترسی به pub.dev)
+# ممکن نبود.
+#
+# آیتم باز: Build کامل APK/iOS هنوز به این CI اضافه نشده (نیازمند Scaffold کامل android/ios که
+# توسط ابزار flutter create تولید می‌شود، نه نوشتن دستی) — فعلاً فقط analyze+test تایید می‌شوند.
+
+on:
+  push:
+    paths:
+      - "mobile-parent/**"
+      - ".github/workflows/mobile-parent-ci.yml"
+  pull_request:
+    paths:
+      - "mobile-parent/**"
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-parent
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze
+
+      - name: flutter test
+        run: flutter test --reporter expanded
