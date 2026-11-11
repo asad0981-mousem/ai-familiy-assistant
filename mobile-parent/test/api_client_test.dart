@@ -63,7 +63,11 @@ void main() {
 
     test('پاسخ خطای سرور (پیام رشته‌ای) به ApiException با statusCode درست تبدیل می‌شود', () async {
       final client = MockClient((request) async {
-        return http.Response(jsonEncode({'statusCode': 409, 'message': 'نسخه منقضی شده است'}), 409);
+        return http.Response(
+          jsonEncode({'statusCode': 409, 'message': 'نسخه منقضی شده است'}),
+          409,
+          encoding: utf8,
+        );
       });
 
       final api = ApiClient(
@@ -91,6 +95,7 @@ void main() {
             'message': ['email باید یک ایمیل معتبر باشد', 'password خیلی کوتاه است'],
           }),
           400,
+          encoding: utf8,
         );
       });
 
