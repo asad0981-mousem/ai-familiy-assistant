@@ -23,6 +23,7 @@ class Session extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get displayName => _displayName;
   String? get accessToken => _accessToken;
+  String? get userId => _userId;
 
   /// باید هنگام راه‌اندازی اپ یک‌بار صدا زده شود تا نشست قبلی (در صورت وجود) بازیابی شود.
   Future<void> restore() async {

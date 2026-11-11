@@ -104,7 +104,7 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
             .toList(),
       ),
     );
-    if (type == null) return;
+    if (type == null || !mounted) return;
 
     final session = context.read<Session>();
     try {

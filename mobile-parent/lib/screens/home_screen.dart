@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: ageBand,
+                initialValue: ageBand,
                 decoration: const InputDecoration(labelText: 'بازه سنی'),
                 items: const [
                   DropdownMenuItem(value: '4-6', child: Text('۴ تا ۶ سال')),
@@ -78,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    if (result == true && nameController.text.trim().isNotEmpty) {
+    if (result == true && nameController.text.trim().isNotEmpty && mounted) {
       final session = context.read<Session>();
       try {
         await session.api.createChild(
