@@ -66,7 +66,7 @@ void main() {
         return http.Response(
           jsonEncode({'statusCode': 409, 'message': 'نسخه منقضی شده است'}),
           409,
-          encoding: utf8,
+          headers: {'content-type': 'application/json; charset=utf-8'},
         );
       });
 
@@ -95,7 +95,7 @@ void main() {
             'message': ['email باید یک ایمیل معتبر باشد', 'password خیلی کوتاه است'],
           }),
           400,
-          encoding: utf8,
+          headers: {'content-type': 'application/json; charset=utf-8'},
         );
       });
 
