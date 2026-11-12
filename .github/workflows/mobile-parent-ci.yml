@@ -7,6 +7,11 @@ name: Mobile Parent CI
 #
 # آیتم باز: Build کامل APK/iOS هنوز به این CI اضافه نشده (نیازمند Scaffold کامل android/ios که
 # توسط ابزار flutter create تولید می‌شود، نه نوشتن دستی) — فعلاً فقط analyze+test تایید می‌شوند.
+#
+# نسخه Flutter عمداً پین شده (نه channel: stable بدون نسخه): نسخه‌های جدیدتر stable
+# (مثلاً 3.50.0) اعلام کرده‌اند package:flutter/material.dart منسوخ شده و باید به
+# package:material_ui/material_ui.dart مهاجرت کرد — مهاجرتی واقعی و بزرگ که باید آگاهانه و
+# جداگانه انجام شود، نه این‌که به‌خاطر ارتقای خودکار Runner در CI به‌صورت ناگهانی قرمز شود.
 
 on:
   push:
@@ -31,6 +36,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: "3.47.9"
 
       - name: flutter pub get
         run: flutter pub get
