@@ -12,6 +12,7 @@ import { User, UserRole } from "../users/entities/user.entity";
 import { Family, SubscriptionTier } from "../family/entities/family.entity";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
+import { ChildLoginDto } from "./dto/child-login.dto";
 import { JwtPayload } from "./strategies/jwt.strategy";
 
 export interface AuthTokens {
@@ -20,8 +21,11 @@ export interface AuthTokens {
 }
 
 /**
- * منطق احراز هویت والد (ثبت‌نام/ورود). ورود کودک از مسیر جداگانه (PIN/QR همراه Device Agent) است
- * و در ماژول device-agent پیاده‌سازی می‌شود، نه اینجا — طبق تفکیک فصل ۸/۹ Blueprint نهایی.
+ * منطق احراز هویت والد (ثبت‌نام/ورود) و کودک (ورود با PIN — childLogin پایین‌تر).
+ * ورود کودک از مسیر جداگانه (PIN، نه ایمیل/رمز عبور) است، طبق تفکیک فصل ۸/۹ Blueprint نهایی؛
+ * تا همین‌جا آیتم باز مستندشده («ورود واقعی کودک») در auth.controller.ts بسته شده است.
+ * PIN توسط والد از طریق PATCH /family-members/children/:childId/pin تنظیم می‌شود
+ * (UsersService.setChildPin) — نه در این سرویس.
  */
 @Injectable()
 export class AuthService {
@@ -79,6 +83,33 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user);
     return { user, tokens };
+  }
+
+  /**
+   * ورود کودک با PIN — childId به‌تنهایی محرمانه نیست (یک UUID قابل‌مشاهده برای والد است، طبق
+   * همان الگوی manual pairing code که در Device Agent Enrollment هم استفاده شده)؛ امنیت واقعی
+   * از PIN (آرگون۲ هش‌شده، تایید timing-safe توسط خود argon2.verify) تامین می‌شود.
+   * اگر کودک وجود نداشته باشد یا هنوز PIN تنظیم نشده باشد، همان پیام عمومی «نادرست» برگردانده
+   * می‌شود (نه پیام‌های جدا) تا امکان Enumeration وجود نداشته باشد — مشابه login والد.
+   */
+  async childLogin(dto: ChildLoginDto): Promise<{ user: User; tokens: AuthTokens }> {
+    const child = await this.users.findOne({
+      where: { id: dto.childId, role: UserRole.CHILD, isActive: true },
+    });
+    if (!child || !child.pinHash) {
+      throw new UnauthorizedException("کد ورود یا PIN نادرست است");
+    }
+
+    const valid = await argon2.verify(child.pinHash, dto.pin);
+    if (!valid) {
+      throw new UnauthorizedException("کد ورود یا PIN نادرست است");
+    }
+
+    child.lastLoginAt = new Date();
+    await this.users.save(child);
+
+    const tokens = await this.issueTokens(child);
+    return { user: child, tokens };
   }
 
   private async issueTokens(user: User): Promise<AuthTokens> {

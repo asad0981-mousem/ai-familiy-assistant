@@ -29,18 +29,20 @@ Lint، کامپایل TypeScript، `CREATE EXTENSION vector` روی PostgreSQL �
 | بک‌اند — Device/Command Matrix (۱۲ نوع دستور، Outbox، امضای HMAC) | ✅ Migration + تست E2E (Idempotency، قفل WIPE_DATA) واقعی تایید شد |
 | بک‌اند — Location (Consent Gate + AES-256-GCM) | ✅ Migration + تست E2E (رد/تایید/لغو Consent، مقدار رمزگشایی‌شده صحیح) واقعی تایید شد |
 | بک‌اند — Policy Engine (Optimistic Locking، SYNC_POLICY خودکار) | ✅ Migration + تست E2E (ادغام جزئی Rules، ۴۰۹ روی نسخه نادرست، ابلاغ خودکار لغو Consent) واقعی تایید شد |
-| تست خودکار Unit/E2E | ✅ ۲۰+ تست سبز در CI (رمزنگاری، امضا، IDOR، Consent Gate، Policy، AI Tutor) |
+| بک‌اند — Child Login (PIN) | ✅ Migration (`pin_hash`) + تست E2E (تنظیم PIN توسط والد، ورود موفق/ناموفق، IDOR، PIN نامعتبر، اعتبار توکن کودک صادرشده) واقعی تایید شد |
+| تست خودکار Unit/E2E | ✅ ۲۵+ تست سبز در CI (رمزنگاری، امضا، IDOR، Consent Gate، Policy، AI Tutor، Child Login) |
 | Device Agent (اندروید) | 🟡 MVP شروع شد — Outbox Pull Pattern + تایید HMAC محلی + CI (`./gradlew test`+`assembleDebug`) واقعی تایید می‌شود؛ بدون Device Owner Mode (جزئیات در `device-agent/README.md`) |
-| اپ والد (Flutter) | 🟡 MVP شروع شد — Auth، فرزندان، دستگاه‌ها/دستور، Policy (Optimistic Locking واقعی)، Consent/موقعیت مکانی؛ `flutter analyze`+`flutter test` واقعی در CI تایید می‌شود (جزئیات در `mobile-parent/README.md`) |
-| اپ کودک (Flutter) | ❌ شروع نشده |
+| اپ والد (Flutter) | 🟡 MVP شروع شد — Auth، فرزندان، دستگاه‌ها/دستور، Policy (Optimistic Locking واقعی)، Consent/موقعیت مکانی، تنظیم PIN ورود کودک؛ `flutter analyze`+`flutter test` واقعی در CI تایید می‌شود (جزئیات در `mobile-parent/README.md`) |
+| اپ کودک (Flutter) | ❌ شروع نشده — گام بعدی؛ اکنون که Child Login بک‌اند آماده است، می‌تواند روی `POST /auth/child-login` واقعی ساخته شود |
 
-### آیتم باز شناخته‌شده: ورود واقعی کودک (Child Login)
+### آیتم باز شناخته‌شده (پیشین) — ورود واقعی کودک: حل شد
 
-در کدبیس فعلی، مسیر ورود کودک (PIN/QR همراه Device Agent) طبق طراحی فصل ۸/۹ هنوز پیاده‌سازی نشده —
-فقط ثبت‌نام/ورود والد (`/auth/register`, `/auth/login`) پیاده‌سازی شده است. تست‌های E2E مربوط به
-AI Tutor توکن کودک را با همان قرارداد Payload واقعی (`sub`/`familyId`/`role: "child"`) و Secret واقعی
-برنامه صادر می‌کنند تا تا پیاده‌سازی این مسیر، رفتار Guard/Service به‌طور صادقانه آزموده شود. این آیتم
-باید همزمان با شروع Device Agent اندروید پیاده‌سازی شود.
+نسخه قبلی این بخش می‌گفت مسیر ورود کودک (PIN) هنوز پیاده‌سازی نشده و تست‌های AI Tutor مجبورند توکن
+کودک را به‌صورت دستی صادر کنند. اکنون `POST /api/v1/auth/child-login` به‌طور کامل پیاده‌سازی و با
+E2E واقعی (`backend/test/child-login.e2e-spec.ts`) تایید شده: والد از طریق
+`PATCH /api/v1/family-members/children/:childId/pin` یک PIN چهار تا شش‌رقمی (هش argon2id) برای
+کودک تنظیم می‌کند، و کودک با همان `childId` + PIN وارد می‌شود و توکن نقش `"child"` واقعی دریافت
+می‌کند — دقیقاً با همان قرارداد Payload که AI Tutor/Policies/Locations پیش‌تر انتظار داشتند.
 
 ## اجرای محلی (روی ماشینی با دسترسی اینترنت کامل)
 

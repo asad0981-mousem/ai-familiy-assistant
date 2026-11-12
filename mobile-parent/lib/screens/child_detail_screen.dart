@@ -137,6 +137,64 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
     }
   }
 
+  /// تنظیم PIN ورود کودک — پیش‌نیاز استفاده کودک از اپ کودک (ورود با PIN، نه ایمیل/رمز عبور).
+  Future<void> _setChildPin() async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تنظیم PIN ورود'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'PIN (۴ تا ۶ رقم)',
+              hintText: 'مثلاً ۱۲۳۴',
+            ),
+            validator: (value) {
+              if (value == null || !RegExp(r'^\d{4,6}$').hasMatch(value)) {
+                return 'PIN باید ۴ تا ۶ رقم عددی باشد';
+              }
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('انصراف'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.of(context).pop(controller.text);
+              }
+            },
+            child: const Text('ذخیره'),
+          ),
+        ],
+      ),
+    );
+    if (pin == null || !mounted) return;
+
+    final session = context.read<Session>();
+    try {
+      await session.api.setChildPin(childId: widget.child.id, pin: pin);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('PIN ورود با موفقیت تنظیم شد — همین کد را در اپ کودک وارد کنید')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
   Future<void> _loadLatestLocation() async {
     setState(() => _isLoadingLocation = true);
     final session = context.read<Session>();
@@ -170,6 +228,16 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
                   builder: (_) => PolicyEditorScreen(childId: widget.child.id),
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.pin),
+              title: const Text('PIN ورود کودک'),
+              subtitle: const Text('این PIN برای ورود فرزند به اپ کودک استفاده می‌شود'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: _setChildPin,
             ),
           ),
           const SizedBox(height: 16),

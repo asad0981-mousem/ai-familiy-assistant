@@ -115,6 +115,12 @@ class ApiClient {
     return result as Map<String, dynamic>;
   }
 
+  /// تنظیم/بازنشانی PIN ورود کودک — مطابق backend/src/modules/users/users.controller.ts
+  /// (PATCH /family-members/children/:childId/pin، پاسخ 204 بدون بدنه).
+  Future<void> setChildPin({required String childId, required String pin}) async {
+    await patch('family-members/children/$childId/pin', body: {'pin': pin});
+  }
+
   // --- Devices ---
 
   Future<List<dynamic>> listDevices() async {

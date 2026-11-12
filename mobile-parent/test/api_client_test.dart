@@ -147,5 +147,29 @@ void main() {
       expect(body['expectedVersion'], 1);
       expect(body.containsKey('blockedApps'), isFalse); // فقط فیلدهای ارسالی باید وجود داشته باشند
     });
+
+    test('setChildPin مسیر PATCH صحیح را با بدنه PIN می‌سازد و پاسخ 204 بدون بدنه را می‌پذیرد', () async {
+      http.Request? capturedRequest;
+      final client = MockClient((request) async {
+        capturedRequest = request;
+        return http.Response('', 204);
+      });
+
+      final api = ApiClient(
+        baseUrl: 'http://localhost:3000/api/v1',
+        tokenProvider: () => 'token',
+        client: client,
+      );
+
+      await api.setChildPin(childId: 'child-7', pin: '1234');
+
+      expect(capturedRequest!.method, 'PATCH');
+      expect(
+        capturedRequest!.url.toString(),
+        'http://localhost:3000/api/v1/family-members/children/child-7/pin',
+      );
+      final body = jsonDecode(capturedRequest!.body) as Map<String, dynamic>;
+      expect(body['pin'], '1234');
+    });
   });
 }

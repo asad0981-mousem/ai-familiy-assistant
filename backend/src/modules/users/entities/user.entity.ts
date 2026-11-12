@@ -35,6 +35,14 @@ export class User extends BaseEntity {
   @Column({ name: "password_hash", type: "varchar", length: 255, nullable: true })
   passwordHash?: string | null;
 
+  /**
+   * فقط برای role=child استفاده می‌شود — ورود کودک از طریق PIN (۴ تا ۶ رقمی)، نه ایمیل/رمز عبور.
+   * والد آن را برای فرزند تنظیم/بازنشانی می‌کند (PATCH /family-members/children/:childId/pin).
+   */
+  @Exclude()
+  @Column({ name: "pin_hash", type: "varchar", length: 255, nullable: true })
+  pinHash?: string | null;
+
   @Column({ name: "role", type: "enum", enum: UserRole })
   role!: UserRole;
 

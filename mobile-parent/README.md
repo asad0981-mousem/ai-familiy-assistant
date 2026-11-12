@@ -13,6 +13,9 @@
   دیگر به کاربر نشان می‌دهد — نه یک پیام خطای عمومی.
 - ثبت دستگاه (`enrollDevice`) دقیقاً همان `deviceToken`ای را نمایش می‌دهد که باید دستی در اپ
   Device Agent وارد شود (هماهنگ با `device-agent/README.md` — تا QR Provisioning پیاده‌سازی شود).
+- تنظیم PIN ورود کودک (`setChildPin` → `PATCH /family-members/children/:childId/pin`) از صفحه
+  جزئیات فرزند — PIN وارد شده مستقیماً توسط همان کودک در اپ کودک (`mobile-child`، از طریق
+  `POST /auth/child-login`) برای ورود استفاده می‌شود.
 
 ## آیتم‌های باز (صادقانه)
 
