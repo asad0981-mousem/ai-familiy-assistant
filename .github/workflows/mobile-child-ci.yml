@@ -1,0 +1,46 @@
+name: Mobile Child CI
+
+# به‌ازای هر push/PR روی mobile-child/، وابستگی‌های pub.dev را واقعاً Resolve، flutter analyze
+# (بررسی کامل نوع‌ها/Lint) و flutter test (شامل تست‌های واقعی ApiClient با MockClient روی قرارداد
+# دقیق auth/child-login و ai-tutor/messages، و Session با SecureStorage جعلی خودمان) را اجرا
+# می‌کند — همان تاییدی که در Sandbox توسعه (بدون دسترسی به pub.dev) ممکن نبود.
+#
+# آیتم باز: Build کامل APK/iOS هنوز به این CI اضافه نشده (نیازمند Scaffold کامل android/ios که
+# توسط ابزار flutter create تولید می‌شود، نه نوشتن دستی) — فعلاً فقط analyze+test تایید می‌شوند.
+#
+# نسخه Flutter عمداً پین شده (مطابق mobile-parent-ci.yml) تا ارتقای خودکار Runner به نسخه‌ای که
+# package:flutter/material.dart را منسوخ اعلام کرده (۳.۵۰.۰ به بعد) باعث قرمزشدن ناگهانی نشود.
+
+on:
+  push:
+    paths:
+      - "mobile-child/**"
+      - ".github/workflows/mobile-child-ci.yml"
+  pull_request:
+    paths:
+      - "mobile-child/**"
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-child
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.9"
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze
+
+      - name: flutter test
+        run: flutter test --reporter expanded

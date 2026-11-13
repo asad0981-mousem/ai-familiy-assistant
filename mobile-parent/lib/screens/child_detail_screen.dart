@@ -195,6 +195,40 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
     }
   }
 
+  /// نمایش کد ورود کودک (همان childId) برای وارد کردن در اپ کودک — مطابق الگوی _enrollDevice
+  /// (نمایش یک‌باره + دکمه کپی)، چون childId به‌تنهایی محرمانه نیست؛ امنیت واقعی را PIN تامین می‌کند.
+  Future<void> _showLoginCode() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('کد ورود اپ کودک'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'این کد را همراه با PIN که برای فرزندتان تنظیم کرده‌اید، در اپ کودک وارد کنید:',
+            ),
+            const SizedBox(height: 12),
+            SelectableText(
+              widget.child.id,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: widget.child.id));
+              Navigator.of(context).pop();
+            },
+            child: const Text('کپی و بستن'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _loadLatestLocation() async {
     setState(() => _isLoadingLocation = true);
     final session = context.read<Session>();
@@ -238,6 +272,15 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
               subtitle: const Text('این PIN برای ورود فرزند به اپ کودک استفاده می‌شود'),
               trailing: const Icon(Icons.chevron_left),
               onTap: _setChildPin,
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.qr_code_2),
+              title: const Text('کد ورود اپ کودک'),
+              subtitle: const Text('نمایش شناسه‌ای که فرزند همراه PIN وارد می‌کند'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: _showLoginCode,
             ),
           ),
           const SizedBox(height: 16),

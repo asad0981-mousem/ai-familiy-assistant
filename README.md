@@ -33,7 +33,7 @@ Lint، کامپایل TypeScript، `CREATE EXTENSION vector` روی PostgreSQL �
 | تست خودکار Unit/E2E | ✅ ۲۵+ تست سبز در CI (رمزنگاری، امضا، IDOR، Consent Gate، Policy، AI Tutor، Child Login) |
 | Device Agent (اندروید) | 🟡 MVP شروع شد — Outbox Pull Pattern + تایید HMAC محلی + CI (`./gradlew test`+`assembleDebug`) واقعی تایید می‌شود؛ بدون Device Owner Mode (جزئیات در `device-agent/README.md`) |
 | اپ والد (Flutter) | 🟡 MVP شروع شد — Auth، فرزندان، دستگاه‌ها/دستور، Policy (Optimistic Locking واقعی)، Consent/موقعیت مکانی، تنظیم PIN ورود کودک؛ `flutter analyze`+`flutter test` واقعی در CI تایید می‌شود (جزئیات در `mobile-parent/README.md`) |
-| اپ کودک (Flutter) | ❌ شروع نشده — گام بعدی؛ اکنون که Child Login بک‌اند آماده است، می‌تواند روی `POST /auth/child-login` واقعی ساخته شود |
+| اپ کودک (Flutter) | 🟡 MVP شروع شد — ورود با کد ورود (childId)+PIN واقعی، گفتگوی چت با AI Tutor، به‌خاطرسپردن کد ورود در دستگاه؛ `flutter analyze`+`flutter test` واقعی در CI تایید می‌شود (جزئیات در `mobile-child/README.md`) |
 
 ### آیتم باز شناخته‌شده (پیشین) — ورود واقعی کودک: حل شد
 
