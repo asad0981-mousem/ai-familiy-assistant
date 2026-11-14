@@ -85,6 +85,23 @@ void main() {
       expect(await fakeStorage.readChildId(), 'child-1');
     });
 
+    test(
+        'applyRefreshedTokens توکن‌های جدید را جایگزین می‌کند و childId/displayName قبلی را'
+        ' دست‌نخورده نگه می‌دارد', () async {
+      final fakeStorage = _FakeSecureStorage();
+      final session = Session(api: buildApi(), secureStorage: fakeStorage);
+      await session.login(childId: 'child-1', pin: '1234');
+
+      await session.applyRefreshedTokens('new-access', 'new-refresh');
+
+      expect(session.isAuthenticated, isTrue);
+      expect(session.accessToken, 'new-access');
+      expect(session.refreshToken, 'new-refresh');
+      expect(session.childId, 'child-1');
+      expect(session.displayName, 'سارا');
+      expect(await fakeStorage.readAccessToken(), 'new-access');
+    });
+
     test('logout فقط توکن‌ها را پاک می‌کند؛ childId به‌خاطرسپرده‌شده باقی می‌ماند', () async {
       final fakeStorage = _FakeSecureStorage();
       final session = Session(api: buildApi(), secureStorage: fakeStorage);

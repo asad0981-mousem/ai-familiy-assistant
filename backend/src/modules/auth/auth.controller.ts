@@ -3,6 +3,7 @@ import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { ChildLoginDto } from "./dto/child-login.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 
 @Controller({ path: "auth", version: "1" })
 export class AuthController {
@@ -36,5 +37,12 @@ export class AuthController {
       user: { id: user.id, displayName: user.displayName, role: user.role },
       ...tokens,
     };
+  }
+
+  /** تمدید accessToken با refreshToken — بدون نیاز به ورود دوباره؛ برای والد و کودک یکسان. */
+  @Post("refresh")
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshTokens(dto);
   }
 }

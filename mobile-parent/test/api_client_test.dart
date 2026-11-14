@@ -148,6 +148,142 @@ void main() {
       expect(body.containsKey('blockedApps'), isFalse); // فقط فیلدهای ارسالی باید وجود داشته باشند
     });
 
+    test(
+        'روی ۴۰۱ یک‌بار تلاش برای تمدید توکن می‌کند (POST /auth/refresh) و درخواست اصلی را با'
+        ' توکن جدید دوباره می‌فرستد', () async {
+      var listCallCount = 0;
+      String accessTokenHolder = 'expired-token';
+      String refreshTokenHolder = 'the-refresh-token';
+      String? refreshedAccess;
+      String? refreshedRefresh;
+
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('/auth/refresh')) {
+          expect(request.headers.containsKey('Authorization'), isFalse);
+          final sentBody = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(sentBody['refreshToken'], 'the-refresh-token');
+          return http.Response(
+            jsonEncode({'accessToken': 'new-access-token', 'refreshToken': 'new-refresh-token'}),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        if (request.url.path.endsWith('/family-members')) {
+          listCallCount++;
+          if (listCallCount == 1) {
+            expect(request.headers['Authorization'], 'Bearer expired-token');
+            return http.Response(
+              jsonEncode({'statusCode': 401, 'message': 'توکن نامعتبر است'}),
+              401,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            );
+          }
+          expect(request.headers['Authorization'], 'Bearer new-access-token');
+          return http.Response(
+            jsonEncode(<dynamic>[]),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        fail('مسیر غیرمنتظره: ${request.url}');
+      });
+
+      final api = ApiClient(
+        baseUrl: 'http://localhost:3000/api/v1',
+        tokenProvider: () => accessTokenHolder,
+        refreshTokenProvider: () => refreshTokenHolder,
+        onTokensRefreshed: (access, refresh) {
+          accessTokenHolder = access;
+          refreshTokenHolder = refresh;
+          refreshedAccess = access;
+          refreshedRefresh = refresh;
+        },
+        client: client,
+      );
+
+      final result = await api.listFamilyMembers();
+
+      expect(result, isEmpty);
+      expect(refreshedAccess, 'new-access-token');
+      expect(refreshedRefresh, 'new-refresh-token');
+      expect(listCallCount, 2);
+    });
+
+    test(
+        'اگر تمدید توکن هم شکست بخورد، خطای ۴۰۱ اصلی پرتاب می‌شود و onRefreshFailed صدا زده'
+        ' می‌شود (نه یک حلقه بی‌پایان)', () async {
+      var refreshFailedCalled = false;
+      var refreshCallCount = 0;
+
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('/auth/refresh')) {
+          refreshCallCount++;
+          return http.Response(
+            jsonEncode({'statusCode': 401, 'message': 'توکن تازه‌سازی نامعتبر یا منقضی است'}),
+            401,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        return http.Response(
+          jsonEncode({'statusCode': 401, 'message': 'توکن نامعتبر است'}),
+          401,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      });
+
+      final api = ApiClient(
+        baseUrl: 'http://localhost:3000/api/v1',
+        tokenProvider: () => 'expired-token',
+        refreshTokenProvider: () => 'expired-refresh-token',
+        onRefreshFailed: () => refreshFailedCalled = true,
+        client: client,
+      );
+
+      await expectLater(
+        () => api.listFamilyMembers(),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 401)
+              .having((e) => e.message, 'message', 'توکن نامعتبر است'),
+        ),
+      );
+      expect(refreshFailedCalled, isTrue);
+      expect(refreshCallCount, 1); // فقط یک‌بار تلاش، نه حلقه تکراری
+    });
+
+    test('درخواست بدون Authentication (withAuth: false) هرگز تمدید توکن را امتحان نمی‌کند، حتی روی ۴۰۱',
+        () async {
+      var refreshCalled = false;
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('/auth/refresh')) {
+          refreshCalled = true;
+          return http.Response(
+            jsonEncode({'accessToken': 'x', 'refreshToken': 'y'}),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
+        return http.Response(
+          jsonEncode({'statusCode': 401, 'message': 'ایمیل یا رمز عبور نادرست است'}),
+          401,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      });
+
+      final api = ApiClient(
+        baseUrl: 'http://localhost:3000/api/v1',
+        tokenProvider: () => null,
+        refreshTokenProvider: () => 'some-refresh-token',
+        client: client,
+      );
+
+      await expectLater(
+        () => api.login(email: 'a@b.com', password: 'wrong'),
+        throwsA(isA<ApiException>()),
+      );
+      expect(refreshCalled, isFalse);
+    });
+
     test('setChildPin مسیر PATCH صحیح را با بدنه PIN می‌سازد و پاسخ 204 بدون بدنه را می‌پذیرد', () async {
       http.Request? capturedRequest;
       final client = MockClient((request) async {

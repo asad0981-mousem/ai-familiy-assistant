@@ -22,6 +22,7 @@ class Session extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get displayName => _displayName;
   String? get accessToken => _accessToken;
+  String? get refreshToken => _refreshToken;
   String? get childId => _childId;
 
   /// کد ورود (childId) به‌خاطرسپرده‌شده از ورود قبلی — حتی اگر توکن منقضی شده باشد، برای پر کردن
@@ -54,6 +55,20 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// توسط ApiClient._tryRefresh پس از تمدید موفق صدا زده می‌شود. isAuthenticated از قبل true
+  /// بوده (فقط مقدار توکن عوض شده، نه وضعیت ورود)، پس عمداً notifyListeners صدا نمی‌شود — تمدید
+  /// باید بی‌صدا و بدون قطع گفتگوی در حال انجام اتفاق بیفتد.
+  Future<void> applyRefreshedTokens(String accessToken, String refreshToken) async {
+    _accessToken = accessToken;
+    _refreshToken = refreshToken;
+    await _secureStorage.saveSession(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      childId: _childId!,
+      displayName: _displayName ?? '',
+    );
+  }
+
   /// فقط خروج از نشست فعلی — کد ورود (childId) را نگه می‌دارد تا دفعه بعد فقط PIN خواسته شود.
   Future<void> logout() async {
     _accessToken = null;
@@ -73,8 +88,9 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// اگر خطای 401 از ApiClient دریافت شد (توکن منقضی)، نشست را پاک می‌کند تا کودک دوباره با
-  /// PIN وارد شود — فعلاً بدون Refresh Token خودکار (همان آیتم باز اپ والد).
+  /// اگر خطای 401 از ApiClient دریافت شد، یعنی حتی تلاش خودکار برای تمدید توکن هم شکست خورده
+  /// (ApiClient._withAuthRetry قبلاً خودش یک‌بار تمدید را امتحان کرده)، پس نشست را پاک می‌کند تا
+  /// کودک دوباره با PIN وارد شود.
   Future<void> handleUnauthorized(ApiException e) async {
     if (e.isUnauthorized) {
       await logout();

@@ -23,6 +23,7 @@ class Session extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get displayName => _displayName;
   String? get accessToken => _accessToken;
+  String? get refreshToken => _refreshToken;
   String? get userId => _userId;
 
   /// باید هنگام راه‌اندازی اپ یک‌بار صدا زده شود تا نشست قبلی (در صورت وجود) بازیابی شود.
@@ -63,6 +64,15 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// توسط ApiClient._tryRefresh پس از تمدید موفق صدا زده می‌شود. isAuthenticated از قبل true
+  /// بوده (فقط مقدار توکن عوض شده، نه وضعیت ورود)، پس عمداً notifyListeners صدا نمی‌شود — تمدید
+  /// باید بی‌صدا و بدون بازسازی درخت ویجت اتفاق بیفتد.
+  Future<void> applyRefreshedTokens(String accessToken, String refreshToken) async {
+    _accessToken = accessToken;
+    _refreshToken = refreshToken;
+    await _secureStorage.saveTokens(accessToken: accessToken, refreshToken: refreshToken);
+  }
+
   Future<void> logout() async {
     _accessToken = null;
     _refreshToken = null;
@@ -72,9 +82,9 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// اگر خطای 401 از ApiClient دریافت شد (توکن منقضی)، نشست را پاک می‌کند تا کاربر به صفحه ورود
-  /// برگردد؛ فراخوان باید catch کند و این متد را صدا بزند — فعلاً بدون Refresh Token خودکار
-  /// (آیتم باز؛ باید قبل از انتشار واقعی اضافه شود).
+  /// اگر خطای 401 از ApiClient دریافت شد، یعنی حتی تلاش خودکار برای تمدید توکن هم شکست خورده
+  /// (ApiClient._withAuthRetry قبلاً خودش یک‌بار تمدید را امتحان کرده)، پس نشست را پاک می‌کند تا
+  /// کاربر دوباره وارد شود؛ فراخوان باید catch کند و این متد را صدا بزند.
   Future<void> handleUnauthorized(ApiException e) async {
     if (e.isUnauthorized) {
       await logout();

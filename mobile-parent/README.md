@@ -16,6 +16,10 @@
 - تنظیم PIN ورود کودک (`setChildPin` → `PATCH /family-members/children/:childId/pin`) از صفحه
   جزئیات فرزند — PIN وارد شده مستقیماً توسط همان کودک در اپ کودک (`mobile-child`، از طریق
   `POST /auth/child-login`) برای ورود استفاده می‌شود.
+- تمدید خودکار accessToken: چون accessToken کوتاه‌مدت است (پیش‌فرض ۱۵ دقیقه، `jwt.accessExpiresIn`
+  سمت بک‌اند)، `ApiClient` روی هر ۴۰۱ یک‌بار خودش `POST /auth/refresh` را امتحان می‌کند و در صورت
+  موفقیت، درخواست اصلی را با توکن جدید دوباره می‌فرستد — کاملاً شفاف برای UI، بدون نیاز به ورود
+  دوباره هر ۱۵ دقیقه. فقط اگر خود تمدید هم شکست بخورد (۴۰۱)، `Session.logout()` فراخوانی می‌شود.
 
 ## آیتم‌های باز (صادقانه)
 
@@ -23,11 +27,9 @@
    می‌شود، نه `flutter build apk` — چون Scaffold پلتفرم (`android/`, `ios/`) باید توسط خود
    ابزار `flutter create` تولید شود، نه دستی نوشته شود (برخلاف Device Agent که یک پروژه Gradle
    خالص Kotlin بود و دستی قابل‌نوشتن بود).
-2. **Refresh Token خودکار**: فعلاً روی ۴۰۱ فقط کاربر را Logout می‌کند؛ تمدید خودکار توکن با
-   Refresh Token هنوز اضافه نشده.
-3. **QR Provisioning**: کد اتصال دستگاه فعلاً به‌صورت متن قابل‌کپی نمایش داده می‌شود (هماهنگ با
+2. **QR Provisioning**: کد اتصال دستگاه فعلاً به‌صورت متن قابل‌کپی نمایش داده می‌شود (هماهنگ با
    آیتم باز مشابه در Device Agent).
-4. **مهاجرت از `package:flutter/material.dart`**: نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد)
+3. **مهاجرت از `package:flutter/material.dart`**: نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد)
    این پکیج را منسوخ اعلام کرده‌اند و `package:material_ui/material_ui.dart` را جایگزین
    پیشنهاد می‌دهند. این CI عمداً روی Flutter ۳.۴۷.۹ پین شده (`.github/workflows/mobile-parent-ci.yml`)
    تا سبز بماند؛ مهاجرت واقعی به API جدید هنوز انجام نشده و باید جداگانه و آگاهانه بررسی شود.

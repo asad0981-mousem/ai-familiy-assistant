@@ -31,6 +31,10 @@ class _ParentAppState extends State<ParentApp> {
     final api = ApiClient(
       baseUrl: _defaultApiBaseUrl,
       tokenProvider: () => _session.accessToken,
+      refreshTokenProvider: () => _session.refreshToken,
+      onTokensRefreshed: (accessToken, refreshToken) =>
+          _session.applyRefreshedTokens(accessToken, refreshToken),
+      onRefreshFailed: () => _session.logout(),
     );
     _session = Session(api: api)..restore();
   }

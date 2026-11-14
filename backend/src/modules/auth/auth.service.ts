@@ -13,6 +13,7 @@ import { Family, SubscriptionTier } from "../family/entities/family.entity";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { ChildLoginDto } from "./dto/child-login.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { JwtPayload } from "./strategies/jwt.strategy";
 
 export interface AuthTokens {
@@ -110,6 +111,38 @@ export class AuthService {
 
     const tokens = await this.issueTokens(child);
     return { user: child, tokens };
+  }
+
+  /**
+   * تمدید accessToken با refreshToken — چون accessToken کوتاه‌مدت است (پیش‌فرض ۱۵ دقیقه،
+   * jwt.accessExpiresIn)، بدون این مسیر هر دو اپ والد/کودک هر ۱۵ دقیقه کاربر را به‌اجبار
+   * Logout می‌کردند (آیتم باز مستندشده در mobile-parent/README.md و mobile-child/README.md).
+   * امضا با Secret جدا (jwt.refreshSecret، نه jwt.accessSecret) تایید می‌شود تا accessToken
+   * عادی قابل استفاده به‌جای refreshToken نباشد. کاربر دوباره از DB واکشی می‌شود (نه فقط اعتماد
+   * به Payload امضاشده) تا اگر غیرفعال شده باشد، تمدید رد شود — مشابه الگوی childLogin بالا.
+   * توکن دستگاه (role: "device") هرگز از این مسیر تمدید نمی‌شود: طولانی‌مدت (۳۶۵ روز) و جدا از
+   * این جریان refresh است (DevicesService.enroll).
+   */
+  async refreshTokens(dto: RefreshTokenDto): Promise<AuthTokens> {
+    let payload: JwtPayload;
+    try {
+      payload = await this.jwt.verifyAsync<JwtPayload>(dto.refreshToken, {
+        secret: this.config.get<string>("jwt.refreshSecret"),
+      });
+    } catch {
+      throw new UnauthorizedException("توکن تازه‌سازی نامعتبر یا منقضی است");
+    }
+
+    if (payload.role === "device") {
+      throw new UnauthorizedException("توکن تازه‌سازی نامعتبر یا منقضی است");
+    }
+
+    const user = await this.users.findOne({ where: { id: payload.sub, isActive: true } });
+    if (!user) {
+      throw new UnauthorizedException("توکن تازه‌سازی نامعتبر یا منقضی است");
+    }
+
+    return this.issueTokens(user);
   }
 
   private async issueTokens(user: User): Promise<AuthTokens> {
