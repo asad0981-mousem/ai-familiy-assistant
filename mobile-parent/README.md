@@ -20,16 +20,21 @@
   سمت بک‌اند)، `ApiClient` روی هر ۴۰۱ یک‌بار خودش `POST /auth/refresh` را امتحان می‌کند و در صورت
   موفقیت، درخواست اصلی را با توکن جدید دوباره می‌فرستد — کاملاً شفاف برای UI، بدون نیاز به ورود
   دوباره هر ۱۵ دقیقه. فقط اگر خود تمدید هم شکست بخورد (۴۰۱)، `Session.logout()` فراخوانی می‌شود.
+- Build واقعی APK (Debug) در CI: Job دوم (`build-android` در `.github/workflows/mobile-parent-ci.yml`)
+  پوشه `android/` را با خود ابزار `flutter create --platforms=android` می‌سازد (نه دستی نوشته
+  شده) و سپس `flutter build apk --debug` را واقعاً اجرا می‌کند؛ APK خروجی به‌عنوان Artifact در
+  همان اجرای CI قابل دانلود است.
 
 ## آیتم‌های باز (صادقانه)
 
-1. **Build کامل اندروید/iOS**: این نسخه فقط با `flutter analyze` + `flutter test` در CI تایید
-   می‌شود، نه `flutter build apk` — چون Scaffold پلتفرم (`android/`, `ios/`) باید توسط خود
-   ابزار `flutter create` تولید شود، نه دستی نوشته شود (برخلاف Device Agent که یک پروژه Gradle
-   خالص Kotlin بود و دستی قابل‌نوشتن بود).
-2. **QR Provisioning**: کد اتصال دستگاه فعلاً به‌صورت متن قابل‌کپی نمایش داده می‌شود (هماهنگ با
+1. **Build کامل iOS**: نیازمند Runner مک (`macos-latest`) است که در این پروژه هنوز استفاده نشده
+   (هزینه/سرعت متفاوت از `ubuntu-latest`) — تصمیمی جداگانه و آگاهانه که هنوز گرفته نشده.
+2. **پوشه `android/` در ریپو Commit نشده**: عمداً، چون باید توسط خود `flutter create` ساخته شود؛
+   CI آن را در هر اجرا تازه می‌سازد. برای اجرای محلی باید یک‌بار
+   `flutter create --platforms=android --org com.aifamily .` را خودتان اجرا کنید (جزئیات زیر).
+3. **QR Provisioning**: کد اتصال دستگاه فعلاً به‌صورت متن قابل‌کپی نمایش داده می‌شود (هماهنگ با
    آیتم باز مشابه در Device Agent).
-3. **مهاجرت از `package:flutter/material.dart`**: نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد)
+4. **مهاجرت از `package:flutter/material.dart`**: نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد)
    این پکیج را منسوخ اعلام کرده‌اند و `package:material_ui/material_ui.dart` را جایگزین
    پیشنهاد می‌دهند. این CI عمداً روی Flutter ۳.۴۷.۹ پین شده (`.github/workflows/mobile-parent-ci.yml`)
    تا سبز بماند؛ مهاجرت واقعی به API جدید هنوز انجام نشده و باید جداگانه و آگاهانه بررسی شود.
@@ -38,6 +43,8 @@
 
 ```bash
 flutter pub get
+flutter create --platforms=android --org com.aifamily .  # فقط یک‌بار، برای ساخت پوشه android/
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api/v1
 flutter test
+flutter build apk --debug
 ```

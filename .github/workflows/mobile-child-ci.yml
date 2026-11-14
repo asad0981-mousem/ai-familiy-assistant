@@ -5,8 +5,14 @@ name: Mobile Child CI
 # دقیق auth/child-login و ai-tutor/messages، و Session با SecureStorage جعلی خودمان) را اجرا
 # می‌کند — همان تاییدی که در Sandbox توسعه (بدون دسترسی به pub.dev) ممکن نبود.
 #
-# آیتم باز: Build کامل APK/iOS هنوز به این CI اضافه نشده (نیازمند Scaffold کامل android/ios که
-# توسط ابزار flutter create تولید می‌شود، نه نوشتن دستی) — فعلاً فقط analyze+test تایید می‌شوند.
+# آیتم باز: Build کامل iOS هنوز به این CI اضافه نشده (نیازمند Runner مک — تصمیمی جداگانه و
+# آگاهانه با هزینه/سرعت متفاوت که در این پروژه هنوز گرفته نشده). Build اندروید (APK Debug) در
+# Job دوم زیر واقعاً تایید می‌شود.
+#
+# Scaffold پلتفرم اندروید (پوشه android/) در ریپو Commit نشده — عمداً، چون باید توسط خود ابزار
+# flutter create تولید شود، نه دستی نوشته شود؛ این Job در هر اجرا آن را با خود ابزار واقعی
+# می‌سازد. برای اجرای محلی روی ماشینی با دسترسی اینترنت، یک‌بار
+# `flutter create --platforms=android --org com.aifamily .` را در پوشه mobile-child اجرا کنید.
 #
 # نسخه Flutter عمداً پین شده (مطابق mobile-parent-ci.yml) تا ارتقای خودکار Runner به نسخه‌ای که
 # package:flutter/material.dart را منسوخ اعلام کرده (۳.۵۰.۰ به بعد) باعث قرمزشدن ناگهانی نشود.
@@ -44,3 +50,41 @@ jobs:
 
       - name: flutter test
         run: flutter test --reporter expanded
+
+  build-android:
+    runs-on: ubuntu-latest
+    needs: analyze-and-test
+    defaults:
+      run:
+        working-directory: mobile-child
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (برای Gradle/AGP، هماهنگ با device-agent-ci.yml)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.47.9"
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: Generate android/ scaffolding با خود ابزار flutter create (نه دستی)
+        run: flutter create --platforms=android --org com.aifamily .
+
+      - name: flutter build apk --debug
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-family-child-debug-apk
+          path: mobile-child/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14

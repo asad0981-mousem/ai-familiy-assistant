@@ -1,0 +1,14 @@
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+.idea/
+*.iml
+pubspec.lock
+
+# Scaffold پلتفرم عمداً Commit نمی‌شود — باید با خود ابزار `flutter create` ساخته شود، نه دستی
+# نوشته شود (هر اجرای CI آن را خودش می‌سازد؛ جزئیات در README.md). اگر خودتان محلی
+# `flutter create --platforms=android .` را اجرا کردید، همین‌جا نادیده گرفته می‌شود.
+/android/
+/ios/
