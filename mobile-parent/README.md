@@ -12,10 +12,15 @@
 - ویرایشگر Policy از `expectedVersion` واقعی استفاده می‌کند و ۴۰۹ (تعارض نسخه) را جدا از خطاهای
   دیگر به کاربر نشان می‌دهد — نه یک پیام خطای عمومی.
 - ثبت دستگاه (`enrollDevice`) دقیقاً همان `deviceToken`ای را نمایش می‌دهد که باید دستی در اپ
-  Device Agent وارد شود (هماهنگ با `device-agent/README.md` — تا QR Provisioning پیاده‌سازی شود).
+  Device Agent وارد شود (هماهنگ با `device-agent/README.md` — Device Agent هنوز دوربین/اسکن
+  QR ندارد، پایین‌تر توضیح داده شده).
 - تنظیم PIN ورود کودک (`setChildPin` → `PATCH /family-members/children/:childId/pin`) از صفحه
   جزئیات فرزند — PIN وارد شده مستقیماً توسط همان کودک در اپ کودک (`mobile-child`، از طریق
   `POST /auth/child-login`) برای ورود استفاده می‌شود.
+- کد ورود اپ کودک (`_showLoginCode` در `ChildDetailScreen`) هم به‌صورت متن قابل‌کپی و هم به‌صورت
+  QR (`qr_flutter`، با `QrImageView(data: widget.child.id)`) نمایش داده می‌شود — اپ کودک همین QR
+  را با دوربین اسکن می‌کند (`mobile-child/lib/screens/qr_scan_screen.dart`)، به‌جای تایپ دستی
+  UUID.
 - تمدید خودکار accessToken: چون accessToken کوتاه‌مدت است (پیش‌فرض ۱۵ دقیقه، `jwt.accessExpiresIn`
   سمت بک‌اند)، `ApiClient` روی هر ۴۰۱ یک‌بار خودش `POST /auth/refresh` را امتحان می‌کند و در صورت
   موفقیت، درخواست اصلی را با توکن جدید دوباره می‌فرستد — کاملاً شفاف برای UI، بدون نیاز به ورود
@@ -32,8 +37,10 @@
 2. **پوشه `android/` در ریپو Commit نشده**: عمداً، چون باید توسط خود `flutter create` ساخته شود؛
    CI آن را در هر اجرا تازه می‌سازد. برای اجرای محلی باید یک‌بار
    `flutter create --platforms=android --org com.aifamily .` را خودتان اجرا کنید (جزئیات زیر).
-3. **QR Provisioning**: کد اتصال دستگاه فعلاً به‌صورت متن قابل‌کپی نمایش داده می‌شود (هماهنگ با
-   آیتم باز مشابه در Device Agent).
+3. **QR Provisioning دستگاه (Device Agent) هنوز باز است**: QR Provisioning فقط برای کد ورود
+   کودک اضافه شد (بالا)؛ کد اتصال دستگاه (`deviceToken`) هنوز فقط به‌صورت متن قابل‌کپی نمایش
+   داده می‌شود، چون Device Agent (Kotlin native) هنوز دوربین/اسکن QR ندارد — نیازمند
+   CameraX/ML Kit سمت Device Agent، کاری جدا و بزرگ‌تر از این تغییر.
 4. **مهاجرت از `package:flutter/material.dart`**: نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد)
    این پکیج را منسوخ اعلام کرده‌اند و `package:material_ui/material_ui.dart` را جایگزین
    پیشنهاد می‌دهند. این CI عمداً روی Flutter ۳.۴۷.۹ پین شده (`.github/workflows/mobile-parent-ci.yml`)

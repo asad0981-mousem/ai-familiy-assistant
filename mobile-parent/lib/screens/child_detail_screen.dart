@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../core/api_exception.dart';
 import '../core/session.dart';
 import '../models/device.dart';
@@ -197,6 +198,8 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
 
   /// نمایش کد ورود کودک (همان childId) برای وارد کردن در اپ کودک — مطابق الگوی _enrollDevice
   /// (نمایش یک‌باره + دکمه کپی)، چون childId به‌تنهایی محرمانه نیست؛ امنیت واقعی را PIN تامین می‌کند.
+  /// QR همان مقدار خام childId را کدگذاری می‌کند (بدون JSON/پیشوند) — مطابق قراردادی که
+  /// mobile-child/lib/core/qr_codes.dart هنگام اسکن انتظار دارد.
   Future<void> _showLoginCode() async {
     await showDialog<void>(
       context: context,
@@ -207,7 +210,16 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'این کد را همراه با PIN که برای فرزندتان تنظیم کرده‌اید، در اپ کودک وارد کنید:',
+              'این کد را همراه با PIN که برای فرزندتان تنظیم کرده‌اید، در اپ کودک وارد کنید؛'
+              ' یا اپ کودک می‌تواند همین QR را اسکن کند:',
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: QrImageView(
+                data: widget.child.id,
+                size: 180,
+                backgroundColor: Colors.white,
+              ),
             ),
             const SizedBox(height: 12),
             SelectableText(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/api_exception.dart';
 import '../core/session.dart';
+import 'qr_scan_screen.dart';
 
 /// صفحه ورود کودک — به‌جای ایمیل/رمز عبور، «کد ورود» (همان childId که والد از صفحه فرزند در اپ
 /// والد نشان می‌دهد) + PIN عددی چهار تا شش‌رقمی. اگر کد ورود قبلاً روی این دستگاه ذخیره شده
@@ -57,6 +58,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// باز کردن دوربین برای اسکن QR به‌جای تایپ دستی UUID — والد همین مقدار را از صفحه جزئیات
+  /// فرزند در اپ والد («کد ورود اپ کودک») نشان می‌دهد.
+  Future<void> _scanQrCode() async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const QrScanScreen()),
+    );
+    if (result != null && mounted) {
+      setState(() => _childIdController.text = result);
+    }
+  }
+
   void _changeAccount() {
     setState(() {
       _showChildIdField = true;
@@ -87,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  if (_showChildIdField)
+                  if (_showChildIdField) ...[
                     TextFormField(
                       controller: _childIdController,
                       decoration: const InputDecoration(
@@ -95,8 +107,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         hintText: 'کدی که والدت به تو داده',
                       ),
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'کد ورود را وارد کن' : null,
-                    )
-                  else
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _scanQrCode,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('اسکن کد QR به‌جای تایپ'),
+                    ),
+                  ] else
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
