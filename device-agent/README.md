@@ -1,6 +1,7 @@
 # Device Agent (اندروید، Kotlin)
 
-نسخه MVP — Outbox Pull Pattern واقعی پیاده‌سازی شده، اما بدون Device Owner Mode.
+نسخه MVP — Outbox Pull Pattern واقعی پیاده‌سازی شده؛ با Device Admin عادی (نه Device Owner کامل)
+برای قفل/پاک‌سازی واقعی از راه دور.
 
 ## چه چیزی واقعاً کار می‌کند
 
@@ -17,12 +18,19 @@
   `backend/src/common/crypto/command-signer.service.ts`، با یک تست مقدار طلایی مشترک بین هر دو
   زبان (`CommandSignerTest.kt` ⇄ `command-signer.service.spec.ts`) که سازگاری کامل را تایید می‌کند.
   دستوری که امضایش تایید نشود هرگز اجرا نمی‌شود.
-- دستوراتی که بدون Device Owner هم ممکن‌اند واقعاً اجرا می‌شوند: `sync_policy` (دریافت Policy)،
-  `force_location_update` (گزارش موقعیت از `LocationManager`)، `send_parent_message` (نوتیفیکیشن)،
-  `remote_alarm` (لرزش + نوتیفیکیشن).
-- دستورات نیازمند Device Owner (`lock_device`، `unlock_device`، `set_screen_time_limit`،
-  `block_app`، `unblock_app`، `sleep_mode_enable/disable`، `wipe_data`) صادقانه `FAILED` گزارش
-  می‌شوند با دلیل مشخص — نه ادعای اجرای ساختگی.
+- دستوراتی که بدون هیچ مجوز مدیریتی خاصی هم ممکن‌اند واقعاً اجرا می‌شوند: `sync_policy` (دریافت
+  Policy)، `force_location_update` (گزارش موقعیت از `LocationManager`)، `send_parent_message`
+  (نوتیفیکیشن)، `remote_alarm` (لرزش + نوتیفیکیشن).
+- **Device Admin عادی برای قفل/پاک‌سازی واقعی**: از صفحه اصلی (`MainActivity`)، دکمه «فعال‌سازی
+  مدیر دستگاه» دیالوگ استاندارد اندروید (`DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN`، گیرنده
+  `admin/DeviceAgentAdminReceiver.kt`) را باز می‌کند — بدون نیاز به Provisioning یا Factory Reset.
+  وقتی فعال باشد، `lock_device` واقعاً `DevicePolicyManager.lockNow()` و `wipe_data` واقعاً
+  `DevicePolicyManager.wipeData()` را صدا می‌زند (`CommandExecutor.kt`)؛ اگر فعال نباشد، دلیل
+  دقیق (نیاز به فعال‌سازی) در FAILED گزارش می‌شود.
+- دستورات نیازمند Device Owner کامل (`set_screen_time_limit`، `block_app`، `unblock_app`،
+  `sleep_mode_enable/disable`) صادقانه `FAILED` گزارش می‌شوند با دلیل مشخص — نه ادعای اجرای
+  ساختگی. `unlock_device` در هیچ حالتی (حتی Device Owner) از طریق API اندروید ممکن نیست؛ این
+  محدودیت پلتفرم است، نه کمبود پیاده‌سازی — همیشه FAILED با همین توضیح گزارش می‌شود.
 
 ## آیتم باز شناخته‌شده (پیشین) — Enrollment با QR: حل شد
 
@@ -30,20 +38,29 @@
 پیاده‌سازی نشده. اکنون `QrScanActivity` (CameraX + ML Kit Barcode Scanning) و `EnrollmentQr.kt`
 این مسیر را واقعاً پیاده می‌کنند — جزئیات بالا.
 
+## آیتم باز شناخته‌شده (پیشین) — قفل/پاک‌سازی واقعی دستگاه: تا حد Device Admin حل شد
+
+نسخه قبلی این بخش می‌گفت `lock_device`/`wipe_data` نیازمند Device Owner Mode‌اند که هنوز اضافه
+نشده. اکنون مشخص شد این دو دستور مشخصاً با Device Admin عادی (بدون Provisioning) هم ممکن‌اند و
+پیاده‌سازی شدند — جزئیات بالا. آیتم باز واقعی، Device Owner Mode کامل برای بقیه دستورات (زیر)،
+هنوز به قوت خودش باقی است.
+
 ## آیتم‌های باز (صادقانه، نه ادعای کامل بودن)
 
-1. **Device Owner Mode**: برای اجرای واقعی دستورات مدیریتی (قفل/مسدودسازی/پاک‌سازی) باید
-   Provisioning کامل (QR Provisioning هنگام Factory Reset + `DeviceAdminReceiver` +
-   `DevicePolicyManager.setDeviceOwner`) اضافه شود — این یک QR Provisioning جداست (مخصوص
-   Factory Reset)، نه همان QR Enrollment که بالا حل شد.
+1. **Device Owner Mode کامل**: برای اجرای واقعی `set_screen_time_limit`/`block_app`/
+   `unblock_app`/`sleep_mode_enable/disable` باید Provisioning کامل (QR Provisioning هنگام
+   Factory Reset + `DevicePolicyManager.setDeviceOwner`) اضافه شود — این یک QR Provisioning
+   جداست (مخصوص Factory Reset، قبل از هر Setup)، نه همان QR Enrollment یا Device Admin عادی که
+   بالا حل شدند.
 2. **ابلاغ Real-Time**: فعلاً فقط Polling هر ۱۵ دقیقه‌ای وجود دارد؛ FCM Push برای ابلاغ فوری (مثل
    SYNC_POLICY) هنوز اضافه نشده.
 3. **Ed25519**: امضای فعلی HMAC متقارن است (کلید مشترک در APK Build) — مسیر ارتقای مستندشده در
    بک‌اند به امضای غیرمتقارن به‌ازای هر دستگاه هنوز اجرا نشده.
-4. **بدون تست خودکار واقعی برای خود دوربین**: مثل `mobile_scanner` در مسیر Flutter، چون
-   `QrScanActivity` از CameraX/ML Kit واقعی (نیازمند دستگاه/امولاتور با دوربین) استفاده می‌کند، در
-   `./gradlew test` (JVM خالص) قابل اجرا نیست — فقط منطق پارس QR (`EnrollmentQr.kt`) تست خودکار
-   دارد؛ خود صفحه اسکن باید دستی روی دستگاه واقعی تایید شود.
+4. **بدون تست خودکار واقعی برای خود دوربین/Device Admin**: مثل `mobile_scanner` در مسیر Flutter،
+   چون `QrScanActivity` و فعال‌سازی Device Admin از API واقعی اندروید (نیازمند دستگاه/امولاتور)
+   استفاده می‌کنند، در `./gradlew test` (JVM خالص) قابل اجرا نیستند — فقط منطق خالص (پارس QR در
+   `EnrollmentQr.kt`) تست خودکار دارد؛ خود صفحه اسکن و فعال‌سازی Device Admin باید دستی روی
+   دستگاه واقعی تایید شوند.
 
 ## ساخت و تست
 

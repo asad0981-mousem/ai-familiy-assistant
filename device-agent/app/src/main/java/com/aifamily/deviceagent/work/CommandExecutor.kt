@@ -3,6 +3,7 @@ package com.aifamily.deviceagent.work
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
@@ -13,6 +14,7 @@ import android.os.VibratorManager
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import com.aifamily.deviceagent.R
+import com.aifamily.deviceagent.admin.DeviceAgentAdminReceiver
 import com.aifamily.deviceagent.model.CommandType
 import com.aifamily.deviceagent.model.DeviceCommand
 import com.aifamily.deviceagent.network.DeviceApiClient
@@ -28,31 +30,71 @@ sealed class ExecutionResult {
 
 /**
  * اجرای واقعی دستورات دریافتی — طبق محدودیت صادقانه‌ای که در فصل ۱۱ Blueprint نهایی هم تکرار شده:
- * بسیاری از دستورات (قفل/باز کردن دستگاه، مسدودسازی اپ، محدودیت زمان صفحه، حالت خواب، پاک‌سازی
- * داده) فقط در Device Owner Mode واقعی (DevicePolicyManager کامل) قابل اجرا هستند — نه با یک اپ
- * عادی نصب‌شده در Standard Mode. این نسخه MVP فقط دستوراتی را واقعاً اجرا می‌کند که بدون
- * Device Owner هم ممکن‌اند؛ بقیه صادقانه FAILED گزارش می‌شوند، نه ادعای اجرای ساختگی.
- * پیاده‌سازی Device Owner Mode (نصب از طریق QR Provisioning + DevicePolicyManager) آیتم باز بعدی است.
+ * بعضی دستورات (مسدودسازی اپ، محدودیت زمان صفحه، حالت خواب) فقط در Device Owner Mode کامل
+ * (Provisioning هنگام Factory Reset) قابل اجرا هستند — نه با یک اپ عادی. اما LOCK_DEVICE و
+ * WIPE_DATA با Device Admin عادی (فعال‌سازی از طریق دیالوگ استاندارد اندروید در MainActivity،
+ * بدون نیاز به Provisioning) هم واقعاً ممکن‌اند و اینجا پیاده‌سازی شده‌اند. UNLOCK_DEVICE در هیچ
+ * حالتی (حتی Device Owner) از طریق DevicePolicyManager ممکن نیست — اندروید چنین APIای ندارد؛
+ * قفل برداشتن همیشه نیازمند واردکردن PIN/Pattern/Password واقعی توسط خود کاربر است.
  */
 class CommandExecutor(private val context: Context, private val api: DeviceApiClient) {
+
+    private val devicePolicyManager: DevicePolicyManager
+        get() = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+
+    private val adminComponent get() = DeviceAgentAdminReceiver.componentName(context)
+
+    private fun isDeviceAdminActive(): Boolean = devicePolicyManager.isAdminActive(adminComponent)
 
     fun execute(command: DeviceCommand): ExecutionResult = when (command.type) {
         CommandType.SYNC_POLICY -> executeSyncPolicy()
         CommandType.FORCE_LOCATION_UPDATE -> executeForceLocationUpdate()
         CommandType.SEND_PARENT_MESSAGE -> executeSendParentMessage(command)
         CommandType.REMOTE_ALARM -> executeRemoteAlarm()
-        CommandType.LOCK_DEVICE,
-        CommandType.UNLOCK_DEVICE,
+        CommandType.LOCK_DEVICE -> executeLockDevice()
+        CommandType.WIPE_DATA -> executeWipeData()
+        CommandType.UNLOCK_DEVICE -> ExecutionResult.Failed(
+            "باز کردن قفل از راه دور در اندروید ممکن نیست (حتی با Device Owner) — کاربر باید " +
+                "PIN/الگو/رمز خود را واردکند",
+        )
         CommandType.SET_SCREEN_TIME_LIMIT,
         CommandType.BLOCK_APP,
         CommandType.UNBLOCK_APP,
         CommandType.SLEEP_MODE_ENABLE,
         CommandType.SLEEP_MODE_DISABLE,
-        CommandType.WIPE_DATA,
         -> ExecutionResult.Failed(
-            "دستور ${command.type.wireValue} نیازمند Device Owner Mode است که هنوز در این " +
-                "Device Agent پیاده‌سازی نشده (آیتم باز — نیازمند QR Provisioning + DevicePolicyManager)",
+            "دستور ${command.type.wireValue} نیازمند Device Owner Mode کامل است که هنوز در این " +
+                "Device Agent پیاده‌سازی نشده (آیتم باز — نیازمند Provisioning هنگام Factory Reset)",
         )
+    }
+
+    private fun executeLockDevice(): ExecutionResult {
+        if (!isDeviceAdminActive()) {
+            return ExecutionResult.Failed(
+                "Device Admin روی این دستگاه فعال نیست — از صفحه اصلی، «فعال‌سازی مدیر دستگاه» را بزنید",
+            )
+        }
+        return try {
+            devicePolicyManager.lockNow()
+            ExecutionResult.Executed
+        } catch (e: SecurityException) {
+            ExecutionResult.Failed("قفل دستگاه ناموفق بود (مجوز کافی نیست): ${e.message}")
+        }
+    }
+
+    private fun executeWipeData(): ExecutionResult {
+        if (!isDeviceAdminActive()) {
+            return ExecutionResult.Failed(
+                "Device Admin روی این دستگاه فعال نیست — از صفحه اصلی، «فعال‌سازی مدیر دستگاه» را بزنید",
+            )
+        }
+        return try {
+            @Suppress("DEPRECATION")
+            devicePolicyManager.wipeData(0)
+            ExecutionResult.Executed
+        } catch (e: SecurityException) {
+            ExecutionResult.Failed("پاک‌سازی داده‌ها ناموفق بود (مجوز کافی نیست): ${e.message}")
+        }
     }
 
     private fun executeSyncPolicy(): ExecutionResult = try {

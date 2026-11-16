@@ -16,4 +16,9 @@
     <string name="qr_scan_instructions">دوربین را روی کد QR که در اپ والد نمایش داده شده نگه دارید</string>
     <string name="camera_permission_rationale">برای اسکن کد QR، دسترسی دوربین لازم است</string>
     <string name="camera_permission_denied">دسترسی دوربین رد شد — می‌توانید کد را به‌صورت دستی وارد کنید</string>
+
+    <string name="device_admin_explanation">فعال‌سازی این مجوز لازم است تا والد بتواند دستور «قفل دستگاه» یا «پاک‌سازی داده‌ها» را واقعاً اجرا کند</string>
+    <string name="activate_device_admin_button">فعال‌سازی مدیر دستگاه (برای قفل/پاک‌سازی از راه دور)</string>
+    <string name="device_admin_active">مدیر دستگاه: فعال — قفل/پاک‌سازی از راه دور ممکن است</string>
+    <string name="device_admin_inactive">مدیر دستگاه: غیرفعال — دستورات قفل/پاک‌سازی اجرا نمی‌شوند</string>
 </resources>

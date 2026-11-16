@@ -32,7 +32,7 @@ Lint، کامپایل TypeScript، `CREATE EXTENSION vector` روی PostgreSQL �
 | بک‌اند — Child Login (PIN) | ✅ Migration (`pin_hash`) + تست E2E (تنظیم PIN توسط والد، ورود موفق/ناموفق، IDOR، PIN نامعتبر، اعتبار توکن کودک صادرشده) واقعی تایید شد |
 | بک‌اند — Refresh Token (`POST /auth/refresh`) | ✅ تست E2E (تمدید والد/کودک، رد توکن نامعتبر/منقضی/با Secret اشتباه، رد توکن دستگاه) واقعی تایید شد |
 | تست خودکار Unit/E2E | ✅ ۳۰+ تست سبز در CI (رمزنگاری، امضا، IDOR، Consent Gate، Policy، AI Tutor، Child Login، Refresh Token) |
-| Device Agent (اندروید) | 🟡 MVP شروع شد — Outbox Pull Pattern + تایید HMAC محلی + Enrollment با اسکن QR (CameraX+ML Kit) یا دستی + CI (`./gradlew test`+`assembleDebug`) واقعی تایید می‌شود؛ بدون Device Owner Mode (جزئیات در `device-agent/README.md`) |
+| Device Agent (اندروید) | 🟡 MVP شروع شد — Outbox Pull Pattern + تایید HMAC محلی + Enrollment با اسکن QR (CameraX+ML Kit) یا دستی + قفل/پاک‌سازی واقعی با Device Admin عادی + CI (`./gradlew test`+`assembleDebug`) واقعی تایید می‌شود؛ بدون Device Owner Mode کامل (جزئیات در `device-agent/README.md`) |
 | اپ والد (Flutter) | 🟡 MVP شروع شد — Auth (با تمدید خودکار accessToken)، فرزندان، دستگاه‌ها/دستور (با QR اتصال دستگاه)، Policy (Optimistic Locking واقعی)، Consent/موقعیت مکانی، تنظیم PIN + نمایش QR ورود کودک؛ `flutter analyze`+`flutter test`+`flutter build apk --debug` واقعی در CI تایید می‌شود (بدون iOS — نیازمند Runner مک؛ جزئیات در `mobile-parent/README.md`) |
 | اپ کودک (Flutter) | 🟡 MVP شروع شد — ورود با کد ورود (childId)+PIN واقعی (با تمدید خودکار accessToken + اسکن QR به‌جای تایپ دستی)، گفتگوی چت با AI Tutor، به‌خاطرسپردن کد ورود در دستگاه؛ `flutter analyze`+`flutter test`+`flutter build apk --debug` واقعی در CI تایید می‌شود (جزئیات در `mobile-child/README.md`) |
 

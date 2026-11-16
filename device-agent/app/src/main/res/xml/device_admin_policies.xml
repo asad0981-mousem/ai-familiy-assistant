@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    حداقل مجموعه Policy لازم برای Device Admin عادی (نه Device Owner):
+    force-lock برای lockNow()، wipe-data برای wipeData(). هیچ Policy دیگری اضافه نشده، چون این
+    اپ با همین دو قابلیت (بدون Device Owner) کار می‌کند؛ بقیه دستورات هنوز نیازمند Device Owner‌اند.
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <force-lock />
+        <wipe-data />
+    </uses-policies>
+</device-admin>
