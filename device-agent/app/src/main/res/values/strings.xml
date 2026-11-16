@@ -10,4 +10,10 @@
     <string name="already_enrolled">این دستگاه قبلاً متصل شده است</string>
     <string name="agent_running">در حال اجرا — متصل به %1$s</string>
     <string name="unenroll_button">قطع اتصال دستگاه</string>
+
+    <string name="scan_qr_button">اسکن کد QR به‌جای تایپ دستی</string>
+    <string name="qr_scan_title">کد QR اتصال دستگاه را اسکن کنید</string>
+    <string name="qr_scan_instructions">دوربین را روی کد QR که در اپ والد نمایش داده شده نگه دارید</string>
+    <string name="camera_permission_rationale">برای اسکن کد QR، دسترسی دوربین لازم است</string>
+    <string name="camera_permission_denied">دسترسی دوربین رد شد — می‌توانید کد را به‌صورت دستی وارد کنید</string>
 </resources>

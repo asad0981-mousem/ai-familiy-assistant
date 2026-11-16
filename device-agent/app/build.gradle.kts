@@ -1,6 +1,9 @@
 // Device Agent — ماژول اپلیکیشن اندروید.
 // وابستگی‌ها عمداً حداقلی نگه داشته شده‌اند (بدون Retrofit/Moshi/Hilt) تا سطح خطر Resolve شدن
 // در CI پایین بماند: org.json در خود پلتفرم اندروید موجود است، نیازی به کتابخانه سریالایز جدا نیست.
+// استثنای آگاهانه: CameraX + ML Kit Barcode Scanning (هر دو از google() Resolve می‌شوند، همان
+// Repository که Material/AndroidX را هم تامین می‌کند) برای اسکن واقعی QR Enrollment در
+// QrScanActivity — این دو فقط برای همین صفحه اضافه شده‌اند، نه یک چارچوب عمومی‌تر.
 
 plugins {
     id("com.android.application")
@@ -61,6 +64,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.activity:activity-ktx:1.9.0")
 
     // WorkManager — برای Polling دوره‌ای دستورات (Outbox Pull Pattern) حتی وقتی اپ در فورگراند نیست.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
@@ -71,6 +75,15 @@ dependencies {
 
     // HTTP Client سبک برای فراخوانی API بک‌اند.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // CameraX — پیش‌نمایش دوربین زنده برای صفحه اسکن QR Enrollment.
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+
+    // ML Kit Barcode Scanning — تشخیص QR Code از فریم‌های دوربین (کاملاً On-Device، بدون شبکه).
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

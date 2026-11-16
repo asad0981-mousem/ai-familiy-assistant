@@ -48,11 +48,15 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
     }
   }
 
+  /// محتوای QR اتصال دستگاه — دو خط متن ساده (آدرس پایه API + Device Token)، دقیقاً مطابق
+  /// قراردادی که device-agent/.../security/EnrollmentQr.kt هنگام اسکن انتظار دارد. آدرس پایه
+  /// هم لازم است چون Device Agent (برخلاف اپ کودک) پیش‌تر هیچ Session یا آدرس سروری ندارد.
   Future<void> _enrollDevice() async {
     final session = context.read<Session>();
     try {
       final result = await session.api.enrollDevice(childId: widget.child.id);
       final deviceToken = result['deviceToken'] as String;
+      final qrPayload = '${session.api.baseUrl}\n$deviceToken';
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -63,8 +67,16 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'این کد را در اپ Device Agent (روی دستگاه فرزند) وارد کنید. '
-                'این کد فقط همین یک‌بار نمایش داده می‌شود:',
+                'این کد را در اپ Device Agent (روی دستگاه فرزند) وارد کنید، یا اپ Device Agent '
+                'می‌تواند همین QR را اسکن کند. این کد فقط همین یک‌بار نمایش داده می‌شود:',
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: QrImageView(
+                  data: qrPayload,
+                  size: 180,
+                  backgroundColor: Colors.white,
+                ),
               ),
               const SizedBox(height: 12),
               SelectableText(

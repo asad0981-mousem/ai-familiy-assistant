@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
     <!--
         توجه صادقانه: دستوراتی مثل LOCK_DEVICE/BLOCK_APP/WIPE_DATA نیازمند Device Owner Mode
         (از طریق android.app.admin.DeviceAdminReceiver + Provisioning) هستند که در این نسخه
@@ -37,6 +41,11 @@
         <activity
             android:name=".EnrollmentActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".QrScanActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
 
     </application>
 </manifest>

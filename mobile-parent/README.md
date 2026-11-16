@@ -11,9 +11,10 @@
 - نشست (`Session`) با `flutter_secure_storage` ماندگار می‌ماند (بین اجراهای اپ حفظ می‌شود).
 - ویرایشگر Policy از `expectedVersion` واقعی استفاده می‌کند و ۴۰۹ (تعارض نسخه) را جدا از خطاهای
   دیگر به کاربر نشان می‌دهد — نه یک پیام خطای عمومی.
-- ثبت دستگاه (`enrollDevice`) دقیقاً همان `deviceToken`ای را نمایش می‌دهد که باید دستی در اپ
-  Device Agent وارد شود (هماهنگ با `device-agent/README.md` — Device Agent هنوز دوربین/اسکن
-  QR ندارد، پایین‌تر توضیح داده شده).
+- ثبت دستگاه (`enrollDevice`) هم به‌صورت متن قابل‌کپی (`deviceToken`) و هم به‌صورت QR
+  (`qr_flutter`، با `QrImageView(data: '\${session.api.baseUrl}\n\$deviceToken')`) نمایش می‌دهد؛
+  Device Agent (Kotlin native، `QrScanActivity` با CameraX + ML Kit) همین QR را اسکن و هر دو
+  فیلد (آدرس سرور + Device Token) را خودکار پر می‌کند — هماهنگ با `device-agent/README.md`.
 - تنظیم PIN ورود کودک (`setChildPin` → `PATCH /family-members/children/:childId/pin`) از صفحه
   جزئیات فرزند — PIN وارد شده مستقیماً توسط همان کودک در اپ کودک (`mobile-child`، از طریق
   `POST /auth/child-login`) برای ورود استفاده می‌شود.
@@ -37,11 +38,7 @@
 2. **پوشه `android/` در ریپو Commit نشده**: عمداً، چون باید توسط خود `flutter create` ساخته شود؛
    CI آن را در هر اجرا تازه می‌سازد. برای اجرای محلی باید یک‌بار
    `flutter create --platforms=android --org com.aifamily .` را خودتان اجرا کنید (جزئیات زیر).
-3. **QR Provisioning دستگاه (Device Agent) هنوز باز است**: QR Provisioning فقط برای کد ورود
-   کودک اضافه شد (بالا)؛ کد اتصال دستگاه (`deviceToken`) هنوز فقط به‌صورت متن قابل‌کپی نمایش
-   داده می‌شود، چون Device Agent (Kotlin native) هنوز دوربین/اسکن QR ندارد — نیازمند
-   CameraX/ML Kit سمت Device Agent، کاری جدا و بزرگ‌تر از این تغییر.
-4. **مهاجرت از `package:flutter/material.dart`**: نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد)
+3. **مهاجرت از `package:flutter/material.dart`**: نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد)
    این پکیج را منسوخ اعلام کرده‌اند و `package:material_ui/material_ui.dart` را جایگزین
    پیشنهاد می‌دهند. این CI عمداً روی Flutter ۳.۴۷.۹ پین شده (`.github/workflows/mobile-parent-ci.yml`)
    تا سبز بماند؛ مهاجرت واقعی به API جدید هنوز انجام نشده و باید جداگانه و آگاهانه بررسی شود.
