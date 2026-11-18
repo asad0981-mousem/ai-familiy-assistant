@@ -35,7 +35,7 @@ export interface AppConfig {
     rawRetentionDays: number;
   };
   commandSigning: {
-    secret: string;
+    privateKeyHex: string;
   };
 }
 
