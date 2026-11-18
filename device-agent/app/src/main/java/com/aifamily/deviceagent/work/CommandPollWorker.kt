@@ -54,7 +54,7 @@ class CommandPollWorker(context: Context, params: WorkerParameters) : CoroutineW
 
     private fun processCommand(command: DeviceCommand, api: DeviceApiClient, executor: CommandExecutor) {
         val signatureValid = CommandSigner.verify(
-            BuildConfig.COMMAND_SIGNING_SECRET,
+            BuildConfig.COMMAND_SIGNING_PUBLIC_KEY_HEX,
             command.signingPayload(),
             command.signature,
         )

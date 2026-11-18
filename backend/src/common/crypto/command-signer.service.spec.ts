@@ -13,7 +13,7 @@ describe("CommandSignerService", () => {
           provide: ConfigService,
           useValue: {
             get: (key: string) =>
-              key === "commandSigning.secret" ? "test-signing-secret-at-least-32-chars" : undefined,
+              key === "commandSigning.privateKeyHex" ? "01".repeat(32) : undefined,
           },
         },
       ],
@@ -73,13 +73,32 @@ describe("CommandSignerService", () => {
     expect(signer.sign(a)).not.toBe(signer.sign(b));
   });
 
+  it("کلید عمومی Hex معتبر (۶۴ کاراکتر) تولید می‌کند و کلید خصوصی را هرگز برنمی‌گرداند", () => {
+    expect(signer.publicKeyHex).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("کلید خصوصی نامعتبر (نه ۶۴ کاراکتر Hex) باعث خطای فوری در راه‌اندازی می‌شود", async () => {
+    const moduleBuilder = Test.createTestingModule({
+      providers: [
+        CommandSignerService,
+        {
+          provide: ConfigService,
+          useValue: { get: () => "not-valid-hex" },
+        },
+      ],
+    });
+    await expect(moduleBuilder.compile()).rejects.toThrow();
+  });
+
   /**
-   * تست مقدار طلایی (Golden Value) — همان secret/payload/امضای دقیقی که در
-   * device-agent/.../CommandSignerTest.kt برای تایید سازگاری بین پیاده‌سازی TypeScript (سرور)
-   * و Kotlin (Device Agent) استفاده شده. اگر این تست اینجا قرمز شود ولی تست Kotlin سبز بماند
-   * (یا برعکس)، یعنی دو پیاده‌سازی از هم واگرا شده‌اند — دقیقاً همان باگی که این تست باید بگیرد.
+   * تست مقدار طلایی (Golden Value) — همان Seed خصوصی/payload/امضای دقیقی که در
+   * device-agent/.../CommandSignerTest.kt برای تایید سازگاری بین پیاده‌سازی TypeScript (سرور،
+   * امضا با crypto.sign) و Kotlin (Device Agent، تایید با net.i2p.crypto:eddsa) استفاده شده.
+   * اگر این تست اینجا قرمز شود ولی تست Kotlin سبز بماند (یا برعکس)، یعنی دو پیاده‌سازی Ed25519
+   * از هم واگرا شده‌اند — دقیقاً همان باگی که این تست باید بگیرد. مقادیر با
+   * node crypto (createPrivateKey از DER دستی طبق RFC 8410) تولید و این‌جا صرفاً ثابت شده‌اند.
    */
-  it("مقدار طلایی سازگار با پیاده‌سازی Kotlin — Golden Value Cross-Language", () => {
+  it("مقدار طلایی سازگار با پیاده‌سازی Kotlin — Golden Value Cross-Language (Ed25519)", () => {
     const payload = {
       deviceId: "11111111-1111-1111-1111-111111111111",
       type: "sync_policy",
@@ -87,7 +106,11 @@ describe("CommandSignerService", () => {
       payload: { reason: "policy_updated", policyVersion: 3, blockedApps: ["com.a", "com.b"] },
     };
     const signature = signer.sign(payload);
-    expect(signature).toBe("8a4e424de4662c65ef250842771f5be7bde259d51537339da48c81b879f39974");
-    expect(signature).toHaveLength(64);
+    expect(signature).toBe(
+      "fff3499feb311c49f3763c8ee29934f15cecf5ffde6dbe9de7937239feeaeaaa98c56af0117cf0205998c38953275dd92a550f752ed7cd8c829bd221a34b6a0f",
+    );
+    expect(signature).toHaveLength(128);
+    expect(signer.publicKeyHex).toBe("8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c");
+    expect(signer.verify(payload, signature)).toBe(true);
   });
 });

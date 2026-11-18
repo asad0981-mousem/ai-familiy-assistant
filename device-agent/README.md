@@ -14,10 +14,12 @@
   Keystore) ذخیره می‌شود.
 - **CommandPollWorker**: هر ۱۵ دقیقه (حداقل بازه واقعی `PeriodicWorkRequest` در اندروید) `GET
   /devices/commands/pending` را صدا می‌زند.
-- **تایید محلی امضای HMAC-SHA256** هر دستور (`CommandSigner.kt`) — پورت دقیق Kotlin از
-  `backend/src/common/crypto/command-signer.service.ts`، با یک تست مقدار طلایی مشترک بین هر دو
-  زبان (`CommandSignerTest.kt` ⇄ `command-signer.service.spec.ts`) که سازگاری کامل را تایید می‌کند.
-  دستوری که امضایش تایید نشود هرگز اجرا نمی‌شود.
+- **تایید محلی امضای Ed25519** هر دستور (`CommandSigner.kt`، با کتابخانه Pure Java
+  `net.i2p.crypto:eddsa`) — پورت دقیق Kotlin از `backend/src/common/crypto/command-signer.service.ts`،
+  با یک تست مقدار طلایی مشترک بین هر دو زبان (`CommandSignerTest.kt` ⇄
+  `command-signer.service.spec.ts`) که سازگاری کامل را تایید می‌کند. Device Agent فقط کلید عمومی
+  سرور را دارد (`COMMAND_SIGNING_PUBLIC_KEY_HEX`، غیرمحرمانه)؛ کلید خصوصی هرگز در APK نیست، پس
+  Decompile کردن APK دیگر امکان جعل دستور نمی‌دهد. دستوری که امضایش تایید نشود هرگز اجرا نمی‌شود.
 - دستوراتی که بدون هیچ مجوز مدیریتی خاصی هم ممکن‌اند واقعاً اجرا می‌شوند: `sync_policy` (دریافت
   Policy)، `force_location_update` (گزارش موقعیت از `LocationManager`)، `send_parent_message`
   (نوتیفیکیشن)، `remote_alarm` (لرزش + نوتیفیکیشن).
@@ -45,22 +47,33 @@
 پیاده‌سازی شدند — جزئیات بالا. آیتم باز واقعی، Device Owner Mode کامل برای بقیه دستورات (زیر)،
 هنوز به قوت خودش باقی است.
 
+## آیتم باز شناخته‌شده (پیشین) — Ed25519: حل شد
+
+نسخه قبلی این بخش می‌گفت امضای دستورات هنوز HMAC متقارن (کلید مشترک) است و مسیر ارتقا به Ed25519
+غیرمتقارن اجرا نشده. اکنون CommandSignerService سمت بک‌اند با Ed25519 امضا می‌کند و این Device
+Agent با `net.i2p.crypto:eddsa` (چون پشتیبانی بومی اندروید از Ed25519 فقط از API 33 به بعد است)
+فقط با کلید عمومی تایید می‌کند — جزئیات بالا. توجه: این یک کلید سراسری سرور است (نه کلید
+اختصاصی به‌ازای هر دستگاه)؛ امضای اختصاصی به‌ازای هر دستگاه (ستون رزروشده `device_public_key` در
+Entity Device) هنوز یک آیتم باز جداگانه و بزرگ‌تر است (نیازمند توزیع/چرخش کلید per-device).
+
 ## آیتم‌های باز (صادقانه، نه ادعای کامل بودن)
 
 1. **Device Owner Mode کامل**: برای اجرای واقعی `set_screen_time_limit`/`block_app`/
    `unblock_app`/`sleep_mode_enable/disable` باید Provisioning کامل (QR Provisioning هنگام
    Factory Reset + `DevicePolicyManager.setDeviceOwner`) اضافه شود — این یک QR Provisioning
    جداست (مخصوص Factory Reset، قبل از هر Setup)، نه همان QR Enrollment یا Device Admin عادی که
-   بالا حل شدند.
+   قبلاً حل شدند.
 2. **ابلاغ Real-Time**: فعلاً فقط Polling هر ۱۵ دقیقه‌ای وجود دارد؛ FCM Push برای ابلاغ فوری (مثل
-   SYNC_POLICY) هنوز اضافه نشده.
-3. **Ed25519**: امضای فعلی HMAC متقارن است (کلید مشترک در APK Build) — مسیر ارتقای مستندشده در
-   بک‌اند به امضای غیرمتقارن به‌ازای هر دستگاه هنوز اجرا نشده.
+   SYNC_POLICY) هنوز اضافه نشده — این نیازمند یک حساب/پروژه Firebase واقعی است که هنوز تصمیم‌گیری
+   نشده (تصمیمی که آگاهانه به کاربر پروژه واگذار شده، نه چیزی که بی‌صدا گرفته شود).
+3. **کلید Ed25519 سراسری، نه به‌ازای هر دستگاه**: همان‌طور که بالا گفته شد، همه نسخه‌های Device
+   Agent یک کلید عمومی مشترک دارند؛ اگر کلید خصوصی سرور لو برود، همه دستگاه‌ها باید با Build جدید
+   به‌روزرسانی شوند (چرخش یکباره، نه به‌ازای هر دستگاه).
 4. **بدون تست خودکار واقعی برای خود دوربین/Device Admin**: مثل `mobile_scanner` در مسیر Flutter،
    چون `QrScanActivity` و فعال‌سازی Device Admin از API واقعی اندروید (نیازمند دستگاه/امولاتور)
    استفاده می‌کنند، در `./gradlew test` (JVM خالص) قابل اجرا نیستند — فقط منطق خالص (پارس QR در
-   `EnrollmentQr.kt`) تست خودکار دارد؛ خود صفحه اسکن و فعال‌سازی Device Admin باید دستی روی
-   دستگاه واقعی تایید شوند.
+   `EnrollmentQr.kt`، تایید امضای Ed25519 در `CommandSigner.kt`) تست خودکار دارد؛ خود صفحه اسکن
+   و فعال‌سازی Device Admin باید دستی روی دستگاه واقعی تایید شوند.
 
 ## ساخت و تست
 

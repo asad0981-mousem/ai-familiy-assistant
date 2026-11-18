@@ -1,44 +1,75 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createPrivateKey, createPublicKey, sign as edSign, verify as edVerify, KeyObject } from "crypto";
 
 /**
  * امضای دستورات Device Agent — طبق فصل ۱۶ (Security Architecture).
- * پیاده‌سازی فعلی: HMAC-SHA256 با کلید مشترک سرور (ساده‌تر برای MVP، بدون وابستگی بسته خارجی).
- * مسیر ارتقا مستندشده: Ed25519 امضای غیرمتقارن به‌ازای هر دستگاه (device_public_key در Entity Device
- * از هم‌اکنون برای همین منظور رزرو شده) — قبل از Production باید جایگزین شود تا سرور به‌تنهایی
- * نتواند جعل دستور کند (Non-repudiation)؛ این یک آیتم باز شناخته‌شده است، نه ادعای کامل بودن.
+ * پیاده‌سازی فعلی: Ed25519 (امضای غیرمتقارن واقعی)، نه دیگر HMAC-SHA256 با کلید مشترک.
  *
- * دو اصلاح نسبت به نسخه قبلی:
- * ۱. کلید امضا دیگر jwt.accessSecret نیست (باگ امنیتی واقعی: هر طرفی که این کلید را برای تایید
- *    امضای دستور نگه می‌داشت — مثلاً Device Agent — عملاً کلید جعل توکن JWT سرور را هم داشت).
- *    حالا از commandSigning.secret مجزا استفاده می‌شود که فقط برای همین منظور به Device Agent داده می‌شود.
- * ۲. Canonical JSON حالا به‌صورت بازگشتی روی تمام سطوح کلیدها را مرتب می‌کند، نه فقط سطح اول.
- *    نسخه قبلی (`JSON.stringify(payload, Object.keys(payload).sort())`) فقط ترتیب کلیدهای سطح اول
- *    را کنترل می‌کرد؛ ترتیب کلیدهای داخل payload تودرتو به ترتیب درج وابسته بود که وقتی از ستون
- *    jsonb پایگاه‌داده دوباره خوانده می‌شود (نه مستقیم از شیء زمان امضا) تضمینی برای حفظ ترتیب اصلی
- *    وجود ندارد — این می‌توانست باعث شکست تایید امضا در Device Agent برای دستورات کاملاً معتبر شود.
+ * چرا این ارتقا لازم بود (آیتم باز قبلی که این فایل خودش مستند کرده بود): با HMAC، همان کلیدی که
+ * سرور برای امضا استفاده می‌کرد باید روی Device Agent هم برای تایید موجود باشد — یعنی هر Device
+ * Agent (یا هرکس که APK را Decompile کند) به کلید امضا هم دسترسی داشت و عملاً می‌توانست دستور
+ * جعل کند (نبود Non-repudiation). با Ed25519: سرور فقط کلید خصوصی را نگه می‌دارد
+ * (COMMAND_SIGNING_PRIVATE_KEY_HEX، هرگز خارج از بک‌اند نمی‌رود)، و Device Agent فقط کلید عمومی
+ * متناظر را دارد (Device Agent کتابخانه net.i2p.crypto:eddsa را برای تایید استفاده می‌کند — جزئیات
+ * در device-agent/app/.../security/CommandSigner.kt) — استخراج APK دیگر امکان جعل دستور نمی‌دهد.
+ *
+ * کلید خصوصی به‌صورت Seed خام ۳۲ بایتی (۶۴ کاراکتر Hex) پیکربندی می‌شود، سپس با پیشوند ثابت PKCS8
+ * (طبق RFC 8410، OID 1.3.101.112) به یک KeyObject واقعی Ed25519 تبدیل می‌شود — بدون وابستگی به
+ * بسته npm خارجی، چون Node.js از نسخه ۱۲ به بعد Ed25519 را در ماژول crypto خودش پشتیبانی می‌کند.
+ *
+ * Canonical JSON به‌صورت بازگشتی روی تمام سطوح کلیدها را مرتب می‌کند، نه فقط سطح اول — چون ترتیب
+ * کلیدهای داخل payload تودرتو وقتی از ستون jsonb پایگاه‌داده دوباره خوانده می‌شود (نه مستقیم از شیء
+ * زمان امضا) تضمینی برای حفظ ترتیب اصلی ندارد.
  */
+const PKCS8_ED25519_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
+
 @Injectable()
 export class CommandSignerService {
-  private readonly secret: string;
+  private readonly privateKey: KeyObject;
+  private readonly publicKey: KeyObject;
 
   constructor(config: ConfigService) {
-    this.secret = config.get<string>("commandSigning.secret") as string;
+    const seedHex = config.get<string>("commandSigning.privateKeyHex") as string;
+    this.privateKey = privateKeyFromSeedHex(seedHex);
+    this.publicKey = createPublicKey(this.privateKey);
   }
 
   sign(payload: Record<string, unknown>): string {
     const canonical = canonicalize(payload);
-    return createHmac("sha256", this.secret).update(canonical).digest("hex");
+    return edSign(null, Buffer.from(canonical, "utf8"), this.privateKey).toString("hex");
   }
 
   verify(payload: Record<string, unknown>, signature: string): boolean {
-    const expected = this.sign(payload);
-    const expectedBuf = Buffer.from(expected, "hex");
-    const actualBuf = Buffer.from(signature, "hex");
-    if (expectedBuf.length !== actualBuf.length) return false;
-    return timingSafeEqual(expectedBuf, actualBuf);
+    try {
+      const sigBuf = Buffer.from(signature, "hex");
+      if (sigBuf.length !== 64) return false; // طول دقیق امضای Ed25519 — رد سریع ورودی جعلی/کوتاه
+      const canonical = canonicalize(payload);
+      return edVerify(null, Buffer.from(canonical, "utf8"), this.publicKey, sigBuf);
+    } catch {
+      return false; // امضای بدشکل/نامعتبر — بدون پرتاب خطا به فراخوان
+    }
   }
+
+  /**
+   * کلید عمومی Hex (۳۲ بایت خام) برای توزیع به Device Agent (به‌صورت Gradle Property
+   * COMMAND_SIGNING_PUBLIC_KEY_HEX هنگام Build) — این مقدار محرمانه نیست؛ هرگز کلید خصوصی را
+   * برنمی‌گرداند.
+   */
+  get publicKeyHex(): string {
+    const jwk = this.publicKey.export({ format: "jwk" }) as { x: string };
+    return Buffer.from(jwk.x, "base64url").toString("hex");
+  }
+}
+
+function privateKeyFromSeedHex(seedHex: string): KeyObject {
+  if (!/^[0-9a-fA-F]{64}$/.test(seedHex)) {
+    throw new Error(
+      "COMMAND_SIGNING_PRIVATE_KEY_HEX باید دقیقاً ۶۴ کاراکتر Hex (۳۲ بایت Seed خام Ed25519) باشد",
+    );
+  }
+  const der = Buffer.concat([PKCS8_ED25519_PREFIX, Buffer.from(seedHex, "hex")]);
+  return createPrivateKey({ key: der, format: "der", type: "pkcs8" });
 }
 
 /**

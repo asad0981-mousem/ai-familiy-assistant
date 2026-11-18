@@ -4,6 +4,9 @@
 // استثنای آگاهانه: CameraX + ML Kit Barcode Scanning (هر دو از google() Resolve می‌شوند، همان
 // Repository که Material/AndroidX را هم تامین می‌کند) برای اسکن واقعی QR Enrollment در
 // QrScanActivity — این دو فقط برای همین صفحه اضافه شده‌اند، نه یک چارچوب عمومی‌تر.
+// استثنای آگاهانه دوم: net.i2p.crypto:eddsa — پشتیبانی بومی Ed25519 در اندروید فقط از API 33
+// به بعد اضافه شده (minSdk این اپ ۲۶ است)، پس برای تایید امضای Ed25519 دستورات سرور (جایگزین
+// HMAC قبلی) یک کتابخانه Pure Java سبک و بدون وابستگی اضافه لازم بود.
 
 plugins {
     id("com.android.application")
@@ -23,12 +26,16 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // کلید امضای HMAC دستورات — مستقل از هر Secret سرور (JWT و...)؛ فقط برای تایید محلی امضا.
-        // در Build واقعی باید از local.properties/CI Secret خوانده شود، نه هاردکد در سورس.
+        // کلید عمومی Ed25519 سرور (۶۴ کاراکتر Hex، غیرمحرمانه) برای تایید محلی امضای دستورات —
+        // باید دقیقاً همان publicKeyHex باشد که CommandSignerService سمت بک‌اند از روی
+        // COMMAND_SIGNING_PRIVATE_KEY_HEX مشتق می‌کند. در Build واقعی باید از local.properties/CI
+        // Secret خوانده شود، نه هاردکد در سورس. مقدار پیش‌فرض اینجا دقیقاً متناظر با کلید خصوصی
+        // پیش‌فرض ناامن توسعه (backend/src/config/configuration.ts) است تا اجرای محلی سرور+اپ
+        // بدون تنظیم دستی هم کار کند.
         buildConfigField(
             "String",
-            "COMMAND_SIGNING_SECRET",
-            "\"${project.findProperty("COMMAND_SIGNING_SECRET") ?: "insecure-dev-only-command-signing-secret"}\"",
+            "COMMAND_SIGNING_PUBLIC_KEY_HEX",
+            "\"${project.findProperty("COMMAND_SIGNING_PUBLIC_KEY_HEX") ?: "8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394"}\"",
         )
         buildConfigField(
             "String",
@@ -84,6 +91,10 @@ dependencies {
 
     // ML Kit Barcode Scanning — تشخیص QR Code از فریم‌های دوربین (کاملاً On-Device، بدون شبکه).
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // Ed25519 — تایید امضای دستورات سرور؛ Pure Java (بدون وابستگی native)، پس در تست خالص JVM
+    // (./gradlew test) هم قابل استفاده است، نه فقط Instrumented Test.
+    implementation("net.i2p.crypto:eddsa:0.3.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

@@ -65,7 +65,13 @@ export class Device extends BaseEntity {
   @Column({ name: "agent_version", type: "varchar", length: 40, nullable: true })
   agentVersion?: string | null;
 
-  /** کلید عمومی دستگاه برای تایید امضای HMAC/Ed25519 دستورات (فصل ۱۶ Security Architecture). */
+  /**
+   * ستون رزروشده برای آینده — اگر روزی هر دستگاه کلید Ed25519 اختصاصی خودش را تولید کند (مثلاً
+   * برای امضای گزارش‌های Device→Server، نه دستورات Server→Device). توضیح صادقانه: این ستون توسط
+   * CommandSignerService فعلی استفاده نمی‌شود — آن کلاس از یک جفت کلید Ed25519 سراسری (نه
+   * به‌ازای هر دستگاه) برای امضای دستورات استفاده می‌کند که کلید عمومی‌اش در Build-Time به همه
+   * نسخه‌های Device Agent داده می‌شود، نه از این ستون خوانده می‌شود.
+   */
   @Column({ name: "device_public_key", type: "text", nullable: true })
   devicePublicKey?: string | null;
 

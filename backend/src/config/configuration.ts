@@ -71,11 +71,11 @@ export default (): AppConfig => ({
     encryptionKey: process.env.LOCATION_ENCRYPTION_KEY || "",
     rawRetentionDays: parseInt(process.env.LOCATION_RAW_RETENTION_DAYS || "90", 10),
   },
-  // کلید جدا از jwt.accessSecret — قبلاً به‌اشتباه از همان Secret توکن JWT استفاده می‌شد (باگ امنیتی
-  // واقعی: هر Device Agent که این کلید را برای تایید امضای دستور نگه می‌داشت، عملاً کلید جعل JWT
-  // سرور را هم در اختیار داشت). این مقدار باید به Device Agent داده شود، نه jwt.accessSecret.
-  // مسیر ارتقای نهایی مستندشده (Ed25519 غیرمتقارن) همان COMMAND_SIGNING_PRIVATE/PUBLIC_KEY است.
+  // Ed25519 امضای غیرمتقارن دستورات (فصل ۱۶) — کلید خصوصی هرگز نباید به Device Agent داده شود؛
+  // فقط CommandSignerService.publicKeyHex (مشتق‌شده از همین کلید) به Device Agent داده می‌شود
+  // (به‌عنوان Gradle Property COMMAND_SIGNING_PUBLIC_KEY_HEX هنگام Build). مقدار پیش‌فرض فقط برای
+  // توسعه محلی است — صراحتاً ناامن، باید در Production با یک Seed تصادفی واقعی ۳۲ بایتی جایگزین شود.
   commandSigning: {
-    secret: process.env.COMMAND_SIGNING_SECRET || "insecure-dev-only-command-signing-secret",
+    privateKeyHex: process.env.COMMAND_SIGNING_PRIVATE_KEY_HEX || "02".repeat(32),
   },
 });

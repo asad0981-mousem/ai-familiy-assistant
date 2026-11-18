@@ -26,13 +26,13 @@ Lint، کامپایل TypeScript، `CREATE EXTENSION vector` روی PostgreSQL �
 | بک‌اند — Auth (ثبت‌نام/ورود والد، JWT) | ✅ Migration + تست E2E واقعی تایید شد |
 | بک‌اند — Family/User Core | ✅ Migration + تست E2E واقعی تایید شد |
 | بک‌اند — AI Tutor (Provider Abstraction + Fallback + Memory ۴‌سطحی + Safety جدا) | ✅ Migration + تست E2E واقعی تایید شد (جداسازی Safety Agent، Fallback واقعی openai→anthropic، Tenant Isolation مکالمه، نشت‌نکردن حافظه بین خانواده‌ها) |
-| بک‌اند — Device/Command Matrix (۱۲ نوع دستور، Outbox، امضای HMAC) | ✅ Migration + تست E2E (Idempotency، قفل WIPE_DATA) واقعی تایید شد |
+| بک‌اند — Device/Command Matrix (۱۲ نوع دستور، Outbox، امضای Ed25519) | ✅ Migration + تست E2E (Idempotency، قفل WIPE_DATA) واقعی تایید شد |
 | بک‌اند — Location (Consent Gate + AES-256-GCM) | ✅ Migration + تست E2E (رد/تایید/لغو Consent، مقدار رمزگشایی‌شده صحیح) واقعی تایید شد |
 | بک‌اند — Policy Engine (Optimistic Locking، SYNC_POLICY خودکار) | ✅ Migration + تست E2E (ادغام جزئی Rules، ۴۰۹ روی نسخه نادرست، ابلاغ خودکار لغو Consent) واقعی تایید شد |
 | بک‌اند — Child Login (PIN) | ✅ Migration (`pin_hash`) + تست E2E (تنظیم PIN توسط والد، ورود موفق/ناموفق، IDOR، PIN نامعتبر، اعتبار توکن کودک صادرشده) واقعی تایید شد |
 | بک‌اند — Refresh Token (`POST /auth/refresh`) | ✅ تست E2E (تمدید والد/کودک، رد توکن نامعتبر/منقضی/با Secret اشتباه، رد توکن دستگاه) واقعی تایید شد |
 | تست خودکار Unit/E2E | ✅ ۳۰+ تست سبز در CI (رمزنگاری، امضا، IDOR، Consent Gate، Policy، AI Tutor، Child Login، Refresh Token) |
-| Device Agent (اندروید) | 🟡 MVP شروع شد — Outbox Pull Pattern + تایید HMAC محلی + Enrollment با اسکن QR (CameraX+ML Kit) یا دستی + قفل/پاک‌سازی واقعی با Device Admin عادی + CI (`./gradlew test`+`assembleDebug`) واقعی تایید می‌شود؛ بدون Device Owner Mode کامل (جزئیات در `device-agent/README.md`) |
+| Device Agent (اندروید) | 🟡 MVP شروع شد — Outbox Pull Pattern + تایید محلی امضای Ed25519 (غیرمتقارن واقعی، نه HMAC) + Enrollment با اسکن QR (CameraX+ML Kit) یا دستی + قفل/پاک‌سازی واقعی با Device Admin عادی + CI (`./gradlew test`+`assembleDebug`) واقعی تایید می‌شود؛ بدون Device Owner Mode کامل (جزئیات در `device-agent/README.md`) |
 | اپ والد (Flutter) | 🟡 MVP شروع شد — Auth (با تمدید خودکار accessToken)، فرزندان، دستگاه‌ها/دستور (با QR اتصال دستگاه)، Policy (Optimistic Locking واقعی)، Consent/موقعیت مکانی، تنظیم PIN + نمایش QR ورود کودک؛ `flutter analyze`+`flutter test`+`flutter build apk --debug` واقعی در CI تایید می‌شود (بدون iOS — نیازمند Runner مک؛ جزئیات در `mobile-parent/README.md`) |
 | اپ کودک (Flutter) | 🟡 MVP شروع شد — ورود با کد ورود (childId)+PIN واقعی (با تمدید خودکار accessToken + اسکن QR به‌جای تایپ دستی)، گفتگوی چت با AI Tutor، به‌خاطرسپردن کد ورود در دستگاه؛ `flutter analyze`+`flutter test`+`flutter build apk --debug` واقعی در CI تایید می‌شود (جزئیات در `mobile-child/README.md`) |
 
@@ -44,6 +44,16 @@ E2E واقعی (`backend/test/child-login.e2e-spec.ts`) تایید شده: وا�
 `PATCH /api/v1/family-members/children/:childId/pin` یک PIN چهار تا شش‌رقمی (هش argon2id) برای
 کودک تنظیم می‌کند، و کودک با همان `childId` + PIN وارد می‌شود و توکن نقش `"child"` واقعی دریافت
 می‌کند — دقیقاً با همان قرارداد Payload که AI Tutor/Policies/Locations پیش‌تر انتظار داشتند.
+
+### آیتم باز شناخته‌شده (پیشین) — Ed25519 (امضای غیرمتقارن دستورات): حل شد
+
+نسخه قبلی این بخش می‌گفت امضای دستورات هنوز HMAC-SHA256 با کلید مشترک است (سرور و Device Agent
+هر دو همان کلید را نگه می‌داشتند) و مسیر ارتقا به Ed25519 غیرمتقارن اجرا نشده. اکنون
+`CommandSignerService` (بک‌اند) با Ed25519 امضا می‌کند و فقط کلید خصوصی را نگه می‌دارد؛ Device
+Agent (با کتابخانه Pure Java `net.i2p.crypto:eddsa`، چون پشتیبانی بومی اندروید از Ed25519 فقط از
+API 33 به بعد است) فقط کلید عمومی غیرمحرمانه را دارد — Decompile کردن APK دیگر کلید جعل دستور
+نمی‌دهد. یک تست مقدار طلایی مشترک (`command-signer.service.spec.ts` ⇄ `CommandSignerTest.kt`)
+سازگاری کامل دو پیاده‌سازی را تایید می‌کند. جزئیات کامل در `device-agent/README.md`.
 
 ### آیتم باز شناخته‌شده (پیشین) — Enrollment واقعی Device Agent (QR): حل شد
 

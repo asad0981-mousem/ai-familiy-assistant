@@ -87,7 +87,7 @@ export class DeviceCommand extends BaseEntity {
   @Column({ name: "idempotency_key", type: "uuid" })
   idempotencyKey!: string;
 
-  /** امضای HMAC-SHA256 (یا Ed25519 در نسخه آتی) روی payload — طبق فصل ۱۶. */
+  /** امضای Ed25519 (CommandSignerService، کلید سراسری سرور) روی payload — طبق فصل ۱۶. */
   @Column({ name: "signature", type: "text" })
   signature!: string;
 

@@ -1,24 +1,33 @@
 package com.aifamily.deviceagent.security
 
+import net.i2p.crypto.eddsa.EdDSAEngine
+import net.i2p.crypto.eddsa.EdDSAPublicKey
+import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable
+import net.i2p.crypto.eddsa.spec.EdDSAPublicKeySpec
 import java.security.MessageDigest
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 
 /**
- * تایید محلی امضای HMAC-SHA256 دستورات دریافتی از سرور — پورت دقیق Kotlin از
- * backend/src/common/crypto/command-signer.service.ts (تابع canonicalize + HMAC-SHA256).
+ * تایید محلی امضای Ed25519 دستورات دریافتی از سرور — پورت دقیق Kotlin از
+ * backend/src/common/crypto/command-signer.service.ts (تابع canonicalize + امضای Ed25519).
  *
- * نکته امنیتی حیاتی: کلید استفاده‌شده اینجا (COMMAND_SIGNING_SECRET) باید مجزا از هر Secret
- * مربوط به توکن JWT باشد. اگر Device Agent به کلید امضای JWT سرور دسترسی داشته باشد، عملاً
- * می‌تواند توکن‌های دلخواه (از جمله توکن والد) جعل کند — این یک باگ امنیتی واقعی بود که قبل از
- * نوشتن این فایل در خود بک‌اند پیدا و رفع شد (کامیت جداگانه).
+ * ارتقا از HMAC-SHA256 قبلی: با HMAC، همان کلیدی که سرور برای امضا استفاده می‌کرد باید روی
+ * Device Agent هم برای تایید موجود باشد — یعنی هرکس APK را Decompile می‌کرد به کلید امضا هم
+ * دسترسی داشت و می‌توانست دستور جعل کند. با Ed25519، این کلاس فقط کلید عمومی سرور
+ * (COMMAND_SIGNING_PUBLIC_KEY_HEX، غیرمحرمانه) را دارد؛ کلید خصوصی فقط روی سرور می‌ماند —
+ * استخراج APK دیگر امکان جعل دستور نمی‌دهد (Non-repudiation واقعی).
  *
- * الگوریتم باید بایت‌به‌بایت با نسخه TypeScript یکسان باشد؛ سازگاری با یک تست مقدار طلایی
- * (Golden Value) مشترک در CommandSignerTest.kt و command-signer.service.spec.ts تایید می‌شود.
+ * از کتابخانه net.i2p.crypto:eddsa استفاده شده (نه java.security.* بومی اندروید) چون پشتیبانی
+ * بومی Ed25519 در اندروید فقط از API 33 (Android 13) به بعد اضافه شده؛ minSdk این اپ ۲۶ است.
+ * این کتابخانه Pure Java (بدون وابستگی native یا android.*) است — دقیقاً مثل استثنای مستندشده
+ * CameraX/ML Kit در build.gradle.kts، یک وابستگی خارجی آگاهانه و محدود، نه نقض فلسفه کلی کم‌وابستگی.
  *
- * عمداً بدون وابستگی به org.json/android.* — این کلاس فقط با نوع‌های ساده Kotlin
+ * الگوریتم Canonicalize باید بایت‌به‌بایت با نسخه TypeScript یکسان باشد؛ سازگاری با یک تست مقدار
+ * طلایی (Golden Value) مشترک در CommandSignerTest.kt و command-signer.service.spec.ts تایید می‌شود.
+ *
+ * بخش Canonicalize عمداً بدون وابستگی به org.json/android.* — فقط با نوع‌های ساده Kotlin
  * (Map/List/String/Number/Boolean/null) کار می‌کند تا به‌صورت خالص روی JVM (بدون نیاز به
- * Robolectric یا دستگاه/امولاتور) در Unit Test واقعی قابل اجرا باشد.
+ * Robolectric یا دستگاه/امولاتور) در Unit Test واقعی قابل اجرا باشد؛ net.i2p.crypto:eddsa هم
+ * Pure Java است، پس تایید امضا هم در همان تست خالص JVM قابل اجراست.
  */
 object CommandSigner {
 
@@ -71,26 +80,34 @@ object CommandSigner {
         return sb.toString()
     }
 
-    private fun hmacSha256Hex(secret: String, message: String): String {
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
-        val raw = mac.doFinal(message.toByteArray(Charsets.UTF_8))
-        return raw.joinToString("") { "%02x".format(it) }
+    private fun hexToBytes(hex: String): ByteArray {
+        require(hex.length % 2 == 0) { "طول Hex باید زوج باشد" }
+        return ByteArray(hex.length / 2) { i ->
+            ((Character.digit(hex[i * 2], 16) shl 4) + Character.digit(hex[i * 2 + 1], 16)).toByte()
+        }
     }
 
-    fun sign(secret: String, payload: Map<String, Any?>): String =
-        hmacSha256Hex(secret, canonicalize(payload))
-
     /**
-     * مقایسه در زمان ثابت (Timing-Safe) — معادل crypto.timingSafeEqual سمت سرور؛
-     * جلوگیری از نشت اطلاعات از طریق Timing Attack حتی در تایید محلی سمت دستگاه.
+     * تایید امضای Ed25519 — [publicKeyHex] باید دقیقاً ۶۴ کاراکتر Hex (۳۲ بایت کلید عمومی خام)
+     * و [signatureHex] دقیقاً ۱۲۸ کاراکتر Hex (۶۴ بایت امضا) باشد؛ هر ورودی بدشکل یا کلید/امضای
+     * نامعتبر باعث false می‌شود، نه Exception — تا فراخوان (CommandPollWorker) همیشه بتواند
+     * صادقانه دستور را FAILED گزارش کند، نه کرش کند.
      */
-    fun verify(secret: String, payload: Map<String, Any?>, signature: String): Boolean {
-        val expected = sign(secret, payload)
-        if (expected.length != signature.length) return false
-        return MessageDigest.isEqual(
-            expected.toByteArray(Charsets.UTF_8),
-            signature.toByteArray(Charsets.UTF_8),
-        )
+    fun verify(publicKeyHex: String, payload: Map<String, Any?>, signatureHex: String): Boolean {
+        return try {
+            if (!Regex("^[0-9a-fA-F]{64}$").matches(publicKeyHex)) return false
+            if (!Regex("^[0-9a-fA-F]{128}$").matches(signatureHex)) return false
+
+            val curveSpec = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519)
+            val publicKeySpec = EdDSAPublicKeySpec(hexToBytes(publicKeyHex), curveSpec)
+            val publicKey = EdDSAPublicKey(publicKeySpec)
+
+            val engine = EdDSAEngine(MessageDigest.getInstance(curveSpec.hashAlgorithm))
+            engine.initVerify(publicKey)
+            engine.update(canonicalize(payload).toByteArray(Charsets.UTF_8))
+            engine.verify(hexToBytes(signatureHex))
+        } catch (e: Exception) {
+            false
+        }
     }
 }
