@@ -38,10 +38,22 @@
 2. **پوشه `android/` در ریپو Commit نشده**: عمداً، چون باید توسط خود `flutter create` ساخته شود؛
    CI آن را در هر اجرا تازه می‌سازد. برای اجرای محلی باید یک‌بار
    `flutter create --platforms=android --org com.aifamily .` را خودتان اجرا کنید (جزئیات زیر).
-3. **مهاجرت از `package:flutter/material.dart`**: نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد)
-   این پکیج را منسوخ اعلام کرده‌اند و `package:material_ui/material_ui.dart` را جایگزین
-   پیشنهاد می‌دهند. این CI عمداً روی Flutter ۳.۴۷.۹ پین شده (`.github/workflows/mobile-parent-ci.yml`)
-   تا سبز بماند؛ مهاجرت واقعی به API جدید هنوز انجام نشده و باید جداگانه و آگاهانه بررسی شود.
+3. ~~**مهاجرت از `package:flutter/material.dart`**~~ — حل شد (زیر را ببینید). پین Flutter
+   ۳.۴۷.۹ (`.github/workflows/mobile-parent-ci.yml`) همچنان برای پایداری Runner نگه داشته شده.
+
+## آیتم باز شناخته‌شده (پیشین) — مهاجرت `material_ui`: حل شد
+
+نسخه قبلی این بخش می‌گفت نسخه‌های جدیدتر Flutter stable (۳.۵۰.۰ به بعد) پکیج
+`flutter/material.dart` را منسوخ اعلام کرده‌اند و `package:material_ui/material_ui.dart` را
+جایگزین پیشنهاد می‌دهند، ولی مهاجرت واقعی انجام نشده بود. اکنون همه فایل‌های `lib/` (`main.dart`
+و هر پنج صفحه) به `package:material_ui/material_ui.dart` مهاجرت کرده‌اند — طبق مستندات رسمی
+مهاجرت Flutter (`docs.flutter.dev/release/breaking-changes/material-ui-and-cupertino-ui`)، نام‌های
+کلاس/ویجت (`MaterialApp`، `Scaffold`، `ThemeData`، ...) بدون تغییر باقی می‌مانند و فقط Import
+عوض می‌شود. این اپ از `flutter_localizations` استفاده نمی‌کرد، پس نیازی به تغییر
+`localizationsDelegates` نبود. `child_detail_screen.dart` همچنان `package:flutter/services.dart`
+را جداگانه Import می‌کند (برای `Clipboard`) — این کتابخانه منسوخ نشده و با `material_ui` ناسازگار
+نیست. `material_ui: ^1.4.0` (اولین نسخه‌ای که رسماً حداقل SDK آن Flutter 3.47 اعلام شده — سازگار
+با پین فعلی ۳.۴۷.۹) به `pubspec.yaml` اضافه شد.
 
 ## اجرا (روی ماشینی با دسترسی اینترنت کامل)
 
