@@ -37,10 +37,37 @@ class SecureStore(context: Context) {
     val isEnrolled: Boolean
         get() = !deviceToken.isNullOrBlank() && !apiBaseUrl.isNullOrBlank()
 
+    /**
+     * آخرین managementMode‌ای که با موفقیت به بک‌اند گزارش شده (نه وضعیت واقعی فعلی دستگاه) —
+     * فقط برای جلوگیری از گزارش تکراری هر ۱۵ دقیقه وقتی چیزی تغییر نکرده؛ CommandPollWorker هر
+     * بار وضعیت واقعی را از DevicePolicyManager می‌خواند و فقط روی تغییر، API را صدا می‌زند.
+     */
+    var lastReportedManagementMode: String?
+        get() = prefs.getString(KEY_LAST_REPORTED_MANAGEMENT_MODE, null)
+        set(value) = prefs.edit().putString(KEY_LAST_REPORTED_MANAGEMENT_MODE, value).apply()
+
+    /**
+     * محدودیت روزانه زمان صفحه (دقیقه) — توسط SET_SCREEN_TIME_LIMIT تنظیم و توسط
+     * ScreenTimeEnforcementWorker خوانده می‌شود. null یعنی هیچ محدودیتی تنظیم نشده.
+     */
+    var screenTimeLimitMinutes: Int?
+        get() = prefs.getInt(KEY_SCREEN_TIME_LIMIT_MINUTES, -1).takeIf { it >= 0 }
+        set(value) = prefs.edit().apply {
+            if (value == null) remove(KEY_SCREEN_TIME_LIMIT_MINUTES) else putInt(KEY_SCREEN_TIME_LIMIT_MINUTES, value)
+        }.apply()
+
+    /** تاریخ (yyyy-MM-dd) آخرین باری که محدودیت زمان صفحه واقعاً اعمال (Suspend) شد — برای Reset روزانه. */
+    var screenTimeLimitAppliedOnDate: String?
+        get() = prefs.getString(KEY_SCREEN_TIME_LIMIT_APPLIED_DATE, null)
+        set(value) = prefs.edit().putString(KEY_SCREEN_TIME_LIMIT_APPLIED_DATE, value).apply()
+
     fun clear() = prefs.edit().clear().apply()
 
     companion object {
         private const val KEY_DEVICE_TOKEN = "device_token"
         private const val KEY_API_BASE_URL = "api_base_url"
+        private const val KEY_LAST_REPORTED_MANAGEMENT_MODE = "last_reported_management_mode"
+        private const val KEY_SCREEN_TIME_LIMIT_MINUTES = "screen_time_limit_minutes"
+        private const val KEY_SCREEN_TIME_LIMIT_APPLIED_DATE = "screen_time_limit_applied_date"
     }
 }

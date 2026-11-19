@@ -21,4 +21,10 @@
     <string name="activate_device_admin_button">فعال‌سازی مدیر دستگاه (برای قفل/پاک‌سازی از راه دور)</string>
     <string name="device_admin_active">مدیر دستگاه: فعال — قفل/پاک‌سازی از راه دور ممکن است</string>
     <string name="device_admin_inactive">مدیر دستگاه: غیرفعال — دستورات قفل/پاک‌سازی اجرا نمی‌شوند</string>
+
+    <string name="device_owner_active">Device Owner: فعال — مسدودسازی اپ/حالت خواب/محدودیت زمان صفحه ممکن است</string>
+    <string name="device_owner_inactive">Device Owner: غیرفعال — این دستگاه باید از طریق adb shell dpm set-device-owner فعال شود (به README مراجعه کنید)</string>
+    <string name="usage_access_button">فعال‌سازی دسترسی Usage Access (برای محدودیت زمان صفحه)</string>
+    <string name="usage_access_granted">دسترسی Usage Access: فعال</string>
+    <string name="usage_access_not_granted">دسترسی Usage Access: غیرفعال — برای محدودیت زمان صفحه لازم است</string>
 </resources>

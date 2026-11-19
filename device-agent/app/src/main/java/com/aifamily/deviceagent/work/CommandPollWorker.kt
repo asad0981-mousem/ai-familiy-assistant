@@ -7,6 +7,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.aifamily.deviceagent.BuildConfig
+import com.aifamily.deviceagent.admin.DeviceOwnerStatus
 import com.aifamily.deviceagent.model.CommandStatus
 import com.aifamily.deviceagent.model.DeviceCommand
 import com.aifamily.deviceagent.network.DeviceApiClient
@@ -40,6 +41,8 @@ class CommandPollWorker(context: Context, params: WorkerParameters) : CoroutineW
         val api = DeviceApiClient(baseUrl, token)
         val executor = CommandExecutor(applicationContext, api)
 
+        reportManagementModeIfChanged(secureStore, api)
+
         return@withContext try {
             val commands = api.fetchPendingCommands()
             for (command in commands) {
@@ -50,6 +53,25 @@ class CommandPollWorker(context: Context, params: WorkerParameters) : CoroutineW
             // خطای شبکه موقت — WorkManager طبق Backoff Policy دوباره تلاش می‌کند، نه شکست قطعی.
             Result.retry()
         }
+    }
+
+    /**
+     * وضعیت واقعی Device Owner را از DevicePolicyManager می‌خواند (نه ادعا) و فقط وقتی با آخرین
+     * مقدار گزارش‌شده فرق دارد، به بک‌اند اطلاع می‌دهد — تا managementMode سمت سرور همیشه با
+     * واقعیت دستگاه هماهنگ بماند (پیش‌نیاز صف‌شدن دستورات نیازمند Device Owner مثل block_app).
+     * شکست این گزارش (مثلاً قطعی موقت شبکه) عمداً کل doWork را متوقف نمی‌کند — در Poll بعدی دوباره
+     * تلاش می‌شود چون lastReportedManagementMode تا موفقیت واقعی API به‌روزرسانی نمی‌شود.
+     */
+    private fun reportManagementModeIfChanged(secureStore: SecureStore, api: DeviceApiClient) {
+        val actualMode = if (DeviceOwnerStatus.isDeviceOwner(applicationContext)) {
+            "device_owner"
+        } else {
+            "standard"
+        }
+        if (secureStore.lastReportedManagementMode == actualMode) return
+
+        runCatching { api.updateManagementMode(actualMode) }
+            .onSuccess { secureStore.lastReportedManagementMode = actualMode }
     }
 
     private fun processCommand(command: DeviceCommand, api: DeviceApiClient, executor: CommandExecutor) {

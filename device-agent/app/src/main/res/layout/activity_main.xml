@@ -29,6 +29,22 @@
         android:layout_marginBottom="16dp"
         android:text="@string/activate_device_admin_button" />
 
+    <TextView
+        android:id="@+id/deviceOwnerStatusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <Button
+        android:id="@+id/usageAccessButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="@string/usage_access_button" />
+
     <Button
         android:id="@+id/unenrollButton"
         android:layout_width="wrap_content"

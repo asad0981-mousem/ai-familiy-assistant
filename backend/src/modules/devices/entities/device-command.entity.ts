@@ -5,7 +5,9 @@ import { Family } from "../../family/entities/family.entity";
 
 /**
  * Command Matrix — طبق فصل ۳۷ Blueprint نهایی. هر نوع دستور، نیازمندی Device Owner خودش را دارد؛
- * دستورات مخرب‌تر (WIPE_DATA) فقط در Device Owner Mode مجازند و باید قبل از صف‌شدن رد شوند.
+ * دستوراتی که واقعاً به DevicePolicyManager API های محدود به Device/Profile Owner نیاز دارند
+ * (BLOCK_APP/UNBLOCK_APP/SLEEP_MODE_*/SET_SCREEN_TIME_LIMIT) باید قبل از صف‌شدن در Standard Mode
+ * رد شوند — نه فقط بعداً توسط خود Device Agent FAILED گزارش شوند (Fail Closed سمت سرور).
  */
 export enum CommandType {
   LOCK_DEVICE = "lock_device",
@@ -19,10 +21,24 @@ export enum CommandType {
   SYNC_POLICY = "sync_policy",
   SEND_PARENT_MESSAGE = "send_parent_message",
   REMOTE_ALARM = "remote_alarm",
-  WIPE_DATA = "wipe_data", // فقط Device Owner Mode — طبق فصل ۱۱ (قانون غیرقابل‌مذاکره)
+  WIPE_DATA = "wipe_data", // با Device Admin عادی هم اجرا می‌شود (نیازمند Device Owner نیست)
 }
 
-const DEVICE_OWNER_ONLY_COMMANDS = new Set<CommandType>([CommandType.WIPE_DATA]);
+/**
+ * اصلاح صادقانه نسبت به نسخه قبلی: WIPE_DATA اینجا حذف شد چون در عمل با یک Device Admin عادی
+ * (DevicePolicyManager.wipeData پس از ACTION_ADD_DEVICE_ADMIN، بدون Provisioning) هم واقعاً اجرا
+ * می‌شود — جزئیات در device-agent/.../work/CommandExecutor.kt. در عوض، چهار دستوری که واقعاً به
+ * API های محدود به Device/Profile Owner نیاز دارند (setApplicationHidden، setPackagesSuspended)
+ * اینجا اضافه شدند — قبلاً اصلاً در این فهرست نبودند (یک باگ واقعی: بک‌اند اجازه صف‌شدن‌شان را در
+ * Standard Mode می‌داد، فقط Device Agent خودش بود که صادقانه FAILED برمی‌گرداند).
+ */
+const DEVICE_OWNER_ONLY_COMMANDS = new Set<CommandType>([
+  CommandType.BLOCK_APP,
+  CommandType.UNBLOCK_APP,
+  CommandType.SLEEP_MODE_ENABLE,
+  CommandType.SLEEP_MODE_DISABLE,
+  CommandType.SET_SCREEN_TIME_LIMIT,
+]);
 
 export function commandRequiresDeviceOwner(type: CommandType): boolean {
   return DEVICE_OWNER_ONLY_COMMANDS.has(type);

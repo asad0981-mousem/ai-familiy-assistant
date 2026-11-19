@@ -179,7 +179,10 @@ describe("Security invariants (e2e)", () => {
       expect(res.body.idempotencyKey).toBeDefined();
     });
 
-    it("WIPE_DATA در Standard Mode رد می‌شود (فقط Device Owner Mode مجاز است)", async () => {
+    it("WIPE_DATA با Device Admin عادی هم مجاز است (دیگر نیازمند Device Owner نیست)", async () => {
+      // اصلاح صادقانه نسبت به نسخه قبلی این تست: WIPE_DATA در عمل با Device Admin عادی
+      // (DevicePolicyManager.wipeData پس از ACTION_ADD_DEVICE_ADMIN) هم اجرا می‌شود — جزئیات در
+      // device-agent/.../work/CommandExecutor.kt — پس دیگر نباید در Standard Mode رد شود.
       const family = await registerFamily("CMD2");
       const child = await createChild(family.accessToken);
       const device = await enrollDevice(family.accessToken, child);
@@ -187,9 +190,50 @@ describe("Security invariants (e2e)", () => {
       const res = await request(app.getHttpServer())
         .post(`/api/v1/devices/${device.deviceId}/commands`)
         .set("Authorization", `Bearer ${family.accessToken}`)
-        .send({ type: "wipe_data" });
+        .send({ type: "wipe_data" })
+        .expect(201);
+
+      expect(res.body.status).toBe("queued");
+    });
+
+    it("BLOCK_APP در Standard Mode رد می‌شود (نیازمند Device Owner واقعی است)", async () => {
+      const family = await registerFamily("CMD3");
+      const child = await createChild(family.accessToken);
+      const device = await enrollDevice(family.accessToken, child);
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/devices/${device.deviceId}/commands`)
+        .set("Authorization", `Bearer ${family.accessToken}`)
+        .send({ type: "block_app", payload: { packageName: "com.example.game" } });
 
       expect(res.status).toBe(400);
+    });
+
+    it("بعد از این‌که Device Agent واقعاً Device Owner بودن را گزارش می‌دهد، BLOCK_APP مجاز می‌شود", async () => {
+      const family = await registerFamily("CMD4");
+      const child = await createChild(family.accessToken);
+      const device = await enrollDevice(family.accessToken, child);
+
+      // والد نمی‌تواند این مقدار را مستقیماً تنظیم کند — فقط خود دستگاه (توکن role=device) می‌تواند.
+      const forbidden = await request(app.getHttpServer())
+        .patch("/api/v1/devices/management-mode")
+        .set("Authorization", `Bearer ${family.accessToken}`)
+        .send({ managementMode: "device_owner" });
+      expect(forbidden.status).toBe(403);
+
+      await request(app.getHttpServer())
+        .patch("/api/v1/devices/management-mode")
+        .set("Authorization", `Bearer ${device.deviceToken}`)
+        .send({ managementMode: "device_owner" })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/devices/${device.deviceId}/commands`)
+        .set("Authorization", `Bearer ${family.accessToken}`)
+        .send({ type: "block_app", payload: { packageName: "com.example.game" } })
+        .expect(201);
+
+      expect(res.body.status).toBe("queued");
     });
   });
 });

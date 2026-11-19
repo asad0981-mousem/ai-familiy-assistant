@@ -24,6 +24,7 @@ import {
 import { EnrollDeviceDto } from "./dto/enroll-device.dto";
 import { CreateCommandDto } from "./dto/create-command.dto";
 import { AckCommandDto } from "./dto/ack-command.dto";
+import { UpdateManagementModeDto } from "./dto/update-management-mode.dto";
 import { JwtPayload } from "../auth/strategies/jwt.strategy";
 import { CommandSignerService } from "../../common/crypto/command-signer.service";
 
@@ -223,6 +224,30 @@ export class DevicesService {
     );
 
     return this.commands.save(command);
+  }
+
+  /**
+   * گزارش واقعی وضعیت Device Owner از خود Device Agent — تنها مسیر معتبر برای تغییر managementMode
+   * بعد از Enrollment. والد نمی‌تواند این مقدار را مستقیماً تنظیم کند (فقط موقع enroll، به‌عنوان
+   * نیت اولیه، نه تایید واقعی)؛ Device Agent این Endpoint را بعد از فراخوانی واقعی
+   * DevicePolicyManager.isDeviceOwnerApp (نه ادعا) صدا می‌زند — جزئیات در
+   * device-agent/.../work/CommandPollWorker.kt یا MainActivity.kt.
+   */
+  async updateManagementMode(
+    deviceToken: JwtPayload,
+    dto: UpdateManagementModeDto,
+  ): Promise<Device> {
+    if (deviceToken.role !== "device") {
+      throw new ForbiddenException("فقط Device Agent مجاز است");
+    }
+
+    const device = await this.devices.findOne({ where: { id: deviceToken.sub } });
+    if (!device) {
+      throw new NotFoundException("دستگاه یافت نشد");
+    }
+
+    device.managementMode = dto.managementMode;
+    return this.devices.save(device);
   }
 
   private async getOwnedDevice(familyId: string, deviceId: string): Promise<Device> {

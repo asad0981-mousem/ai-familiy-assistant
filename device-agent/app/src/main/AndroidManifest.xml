@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -8,14 +9,25 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!--
+        PACKAGE_USAGE_STATS یک مجوز Signature/AppOps خاص است — اعلام آن در Manifest آن را به‌صورت
+        خودکار اعطا نمی‌کند (برخلاف مجوزهای Normal/Dangerous عادی)؛ کاربر همچنان باید دستی از
+        Settings.ACTION_USAGE_ACCESS_SETTINGS آن را فعال کند (دکمه مربوطه در MainActivity).
+        اعلامش در اینجا فقط برای وضوح مستندسازی و سازگاری با برخی OEM هاست.
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
     <!--
-        توجه صادقانه: فقط LOCK_DEVICE و WIPE_DATA با همین Device Admin عادی (پایین) واقعاً اجرا
-        می‌شوند. BLOCK_APP/UNBLOCK_APP/SET_SCREEN_TIME_LIMIT/SLEEP_MODE هنوز نیازمند Device Owner
-        Mode کامل (Provisioning در زمان Factory Reset + setDeviceOwner) هستند — آیتم باز مستندشده
-        در README این پوشه، جداگانه از این Device Admin عادی.
+        توجه صادقانه: LOCK_DEVICE و WIPE_DATA با همین Device Admin عادی (پایین) اجرا می‌شوند.
+        BLOCK_APP/UNBLOCK_APP/SLEEP_MODE/SET_SCREEN_TIME_LIMIT پیاده‌سازی شده‌اند اما نیازمند
+        Device Owner واقعی هستند — روی این نسخه فقط از طریق
+        `adb shell dpm set-device-owner com.aifamily.deviceagent/.admin.DeviceAgentAdminReceiver`
+        قابل فعال‌سازی‌اند (Provisioning واقعی هنگام Factory Reset نیازمند میزبانی APK در آدرس
+        عمومی است که این پروژه هنوز ندارد؛ جزئیات کامل در README این پوشه).
     -->
 
     <application

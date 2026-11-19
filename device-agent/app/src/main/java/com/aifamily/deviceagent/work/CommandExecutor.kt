@@ -14,10 +14,13 @@ import android.os.VibratorManager
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import com.aifamily.deviceagent.R
+import com.aifamily.deviceagent.admin.AppSuspension
 import com.aifamily.deviceagent.admin.DeviceAgentAdminReceiver
+import com.aifamily.deviceagent.admin.DeviceOwnerStatus
 import com.aifamily.deviceagent.model.CommandType
 import com.aifamily.deviceagent.model.DeviceCommand
 import com.aifamily.deviceagent.network.DeviceApiClient
+import com.aifamily.deviceagent.security.SecureStore
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -29,13 +32,15 @@ sealed class ExecutionResult {
 }
 
 /**
- * اجرای واقعی دستورات دریافتی — طبق محدودیت صادقانه‌ای که در فصل ۱۱ Blueprint نهایی هم تکرار شده:
- * بعضی دستورات (مسدودسازی اپ، محدودیت زمان صفحه، حالت خواب) فقط در Device Owner Mode کامل
- * (Provisioning هنگام Factory Reset) قابل اجرا هستند — نه با یک اپ عادی. اما LOCK_DEVICE و
- * WIPE_DATA با Device Admin عادی (فعال‌سازی از طریق دیالوگ استاندارد اندروید در MainActivity،
- * بدون نیاز به Provisioning) هم واقعاً ممکن‌اند و اینجا پیاده‌سازی شده‌اند. UNLOCK_DEVICE در هیچ
- * حالتی (حتی Device Owner) از طریق DevicePolicyManager ممکن نیست — اندروید چنین APIای ندارد؛
- * قفل برداشتن همیشه نیازمند واردکردن PIN/Pattern/Password واقعی توسط خود کاربر است.
+ * اجرای واقعی دستورات دریافتی. LOCK_DEVICE و WIPE_DATA با Device Admin عادی (فعال‌سازی از طریق
+ * دیالوگ استاندارد اندروید در MainActivity، بدون نیاز به Provisioning) ممکن‌اند. BLOCK_APP/
+ * UNBLOCK_APP/SLEEP_MODE_ENABLE/SLEEP_MODE_DISABLE/SET_SCREEN_TIME_LIMIT نیازمند Device Owner
+ * واقعی هستند (DeviceOwnerStatus.isDeviceOwner) — فعال‌سازی مستند‌شده از طریق:
+ * `adb shell dpm set-device-owner com.aifamily.deviceagent/.admin.DeviceAgentAdminReceiver`
+ * (جزئیات کامل در device-agent/README.md؛ Provisioning واقعی هنگام Factory Reset نیازمند
+ * میزبانی APK در آدرس عمومی است که این پروژه هنوز ندارد — صادقانه مستند شده، نه ادعا شده).
+ * UNLOCK_DEVICE در هیچ حالتی (حتی Device Owner) از طریق DevicePolicyManager ممکن نیست — اندروید
+ * چنین APIای ندارد؛ قفل برداشتن همیشه نیازمند واردکردن PIN/Pattern/Password واقعی توسط خود کاربر است.
  */
 class CommandExecutor(private val context: Context, private val api: DeviceApiClient) {
 
@@ -57,15 +62,71 @@ class CommandExecutor(private val context: Context, private val api: DeviceApiCl
             "باز کردن قفل از راه دور در اندروید ممکن نیست (حتی با Device Owner) — کاربر باید " +
                 "PIN/الگو/رمز خود را واردکند",
         )
-        CommandType.SET_SCREEN_TIME_LIMIT,
-        CommandType.BLOCK_APP,
-        CommandType.UNBLOCK_APP,
-        CommandType.SLEEP_MODE_ENABLE,
-        CommandType.SLEEP_MODE_DISABLE,
-        -> ExecutionResult.Failed(
-            "دستور ${command.type.wireValue} نیازمند Device Owner Mode کامل است که هنوز در این " +
-                "Device Agent پیاده‌سازی نشده (آیتم باز — نیازمند Provisioning هنگام Factory Reset)",
-        )
+        CommandType.BLOCK_APP -> executeBlockOrUnblockApp(command, hidden = true)
+        CommandType.UNBLOCK_APP -> executeBlockOrUnblockApp(command, hidden = false)
+        CommandType.SLEEP_MODE_ENABLE -> executeSleepMode(enable = true)
+        CommandType.SLEEP_MODE_DISABLE -> executeSleepMode(enable = false)
+        CommandType.SET_SCREEN_TIME_LIMIT -> executeSetScreenTimeLimit(command)
+    }
+
+    private fun requireDeviceOwner(): ExecutionResult.Failed? {
+        if (!DeviceOwnerStatus.isDeviceOwner(context)) {
+            return ExecutionResult.Failed(
+                "این دستور نیازمند Device Owner Mode واقعی است که روی این دستگاه فعال نیست " +
+                    "(به device-agent/README.md برای روش فعال‌سازی ADB مراجعه کنید)",
+            )
+        }
+        return null
+    }
+
+    private fun executeBlockOrUnblockApp(command: DeviceCommand, hidden: Boolean): ExecutionResult {
+        requireDeviceOwner()?.let { return it }
+
+        val packageName = command.payload["packageName"] as? String
+        if (packageName.isNullOrBlank()) {
+            return ExecutionResult.Failed("payload.packageName برای این دستور الزامی و باید رشته باشد")
+        }
+
+        val success = AppSuspension.setApplicationHidden(context, adminComponent, packageName, hidden)
+        return if (success) {
+            ExecutionResult.Executed
+        } else {
+            ExecutionResult.Failed("مسدودسازی/بازگشایی اپ $packageName ناموفق بود")
+        }
+    }
+
+    private fun executeSleepMode(enable: Boolean): ExecutionResult {
+        requireDeviceOwner()?.let { return it }
+
+        val failedPackages = AppSuspension.setAllLaunchableAppsSuspended(context, adminComponent, enable)
+        return if (failedPackages.isEmpty()) {
+            ExecutionResult.Executed
+        } else {
+            ExecutionResult.Failed(
+                "اعمال حالت خواب روی این اپ‌ها ناموفق بود: ${failedPackages.joinToString(", ")}",
+            )
+        }
+    }
+
+    private fun executeSetScreenTimeLimit(command: DeviceCommand): ExecutionResult {
+        requireDeviceOwner()?.let { return it }
+
+        val rawMinutes = command.payload["screenTimeMinutesPerDay"]
+        val minutes = (rawMinutes as? Number)?.toInt()
+            ?: (rawMinutes as? String)?.toIntOrNull()
+        if (minutes == null || minutes < 0) {
+            return ExecutionResult.Failed(
+                "payload.screenTimeMinutesPerDay برای این دستور الزامی و باید عدد صحیح نامنفی باشد",
+            )
+        }
+
+        val secureStore = SecureStore(context)
+        secureStore.screenTimeLimitMinutes = minutes
+        // اگر همان روز قبلاً محدودیت اعمال (Suspend) شده بود، با تنظیم مجدد محدودیت (مثلاً افزایش
+        // سقف توسط والد) اجازه می‌دهیم ScreenTimeEnforcementWorker در اجرای بعدی دوباره ارزیابی کند.
+        secureStore.screenTimeLimitAppliedOnDate = null
+        ScreenTimeEnforcementWorker.schedule(context)
+        return ExecutionResult.Executed
     }
 
     private fun executeLockDevice(): ExecutionResult {

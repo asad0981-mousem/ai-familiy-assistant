@@ -1,24 +1,30 @@
 package com.aifamily.deviceagent
 
 import android.Manifest
+import android.app.AppOpsManager
 import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
+import android.provider.Settings
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.aifamily.deviceagent.admin.DeviceAgentAdminReceiver
+import com.aifamily.deviceagent.admin.DeviceOwnerStatus
 import com.aifamily.deviceagent.databinding.ActivityMainBinding
 import com.aifamily.deviceagent.security.SecureStore
 import com.aifamily.deviceagent.work.CommandPollWorker
+import com.aifamily.deviceagent.work.ScreenTimeEnforcementWorker
 
 /**
  * صفحه وضعیت اصلی — بعد از Enrollment نمایش داده می‌شود. وضعیت Polling دوره‌ای را نشان می‌دهد،
- * مجوزهای لازم (موقعیت مکانی، نوتیفیکیشن) را درخواست می‌کند، و وضعیت Device Admin (لازم برای
- * دستورات واقعی قفل/پاک‌سازی از راه دور در CommandExecutor) را نشان می‌دهد.
+ * مجوزهای لازم (موقعیت مکانی، نوتیفیکیشن) را درخواست می‌کند، و وضعیت Device Admin/Device Owner
+ * (لازم برای دستورات واقعی قفل/پاک‌سازی/مسدودسازی اپ/محدودیت زمان صفحه در CommandExecutor) و
+ * دسترسی Usage Access (لازم برای ScreenTimeEnforcementWorker) را نشان می‌دهد.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -49,16 +55,52 @@ class MainActivity : AppCompatActivity() {
         binding.statusText.text = getString(R.string.agent_running, secureStore.apiBaseUrl)
         binding.unenrollButton.setOnClickListener { onUnenrollClicked() }
         binding.activateDeviceAdminButton.setOnClickListener { onActivateDeviceAdminClicked() }
+        binding.usageAccessButton.setOnClickListener { onUsageAccessClicked() }
 
         requestRuntimePermissions()
         CommandPollWorker.schedule(applicationContext)
+        ScreenTimeEnforcementWorker.schedule(applicationContext)
     }
 
     override fun onResume() {
         super.onResume()
         if (secureStore.isEnrolled) {
             refreshDeviceAdminStatus()
+            refreshDeviceOwnerStatus()
+            refreshUsageAccessStatus()
         }
+    }
+
+    private fun refreshDeviceOwnerStatus() {
+        val active = DeviceOwnerStatus.isDeviceOwner(this)
+        binding.deviceOwnerStatusText.text = getString(
+            if (active) R.string.device_owner_active else R.string.device_owner_inactive,
+        )
+    }
+
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    private fun refreshUsageAccessStatus() {
+        val granted = hasUsageStatsPermission()
+        binding.usageAccessButton.isEnabled = !granted
+        binding.deviceOwnerStatusText.append(
+            "\n" + getString(if (granted) R.string.usage_access_granted else R.string.usage_access_not_granted),
+        )
+    }
+
+    private fun onUsageAccessClicked() {
+        // PACKAGE_USAGE_STATS یک مجوز AppOps خاص است — هیچ دیالوگ RequestPermission استانداردی
+        // ندارد؛ کاربر باید دستی از صفحه تنظیمات اندروید آن را برای این اپ فعال کند.
+        startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
     }
 
     private fun isDeviceAdminActive(): Boolean {

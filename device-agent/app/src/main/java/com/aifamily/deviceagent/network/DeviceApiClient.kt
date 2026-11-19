@@ -53,6 +53,19 @@ class DeviceApiClient(private val baseUrl: String, private val deviceToken: Stri
         execute(request)
     }
 
+    /**
+     * PATCH /devices/management-mode — فقط بعد از این‌که این دستگاه واقعاً
+     * DevicePolicyManager.isDeviceOwnerApp را خواند (نه ادعا) صدا زده می‌شود؛ تنها راه معتبر برای
+     * این‌که بک‌اند اجازه صف‌شدن دستورات نیازمند Device Owner (مثل block_app) را بدهد.
+     */
+    fun updateManagementMode(managementMode: String) {
+        val json = JSONObject().apply { put("managementMode", managementMode) }
+        val request = authorizedRequest("devices/management-mode")
+            .patch(json.toString().toRequestBody(jsonMediaType))
+            .build()
+        execute(request)
+    }
+
     /** GET /policies/current — دریافت آخرین Policy برای اعمال محلی بعد از SYNC_POLICY. */
     fun fetchCurrentPolicy(): JSONObject {
         val request = authorizedRequest("policies/current").get().build()

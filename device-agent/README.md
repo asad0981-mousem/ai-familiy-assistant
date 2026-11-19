@@ -1,7 +1,8 @@
 # Device Agent (اندروید، Kotlin)
 
-نسخه MVP — Outbox Pull Pattern واقعی پیاده‌سازی شده؛ با Device Admin عادی (نه Device Owner کامل)
-برای قفل/پاک‌سازی واقعی از راه دور.
+نسخه MVP — Outbox Pull Pattern واقعی پیاده‌سازی شده؛ با Device Admin عادی برای قفل/پاک‌سازی واقعی
+از راه دور، و با Device Owner واقعی (فعال‌سازی از طریق ADB — جزئیات زیر) برای مسدودسازی اپ/حالت
+خواب/محدودیت زمان صفحه.
 
 ## چه چیزی واقعاً کار می‌کند
 
@@ -29,10 +30,36 @@
   وقتی فعال باشد، `lock_device` واقعاً `DevicePolicyManager.lockNow()` و `wipe_data` واقعاً
   `DevicePolicyManager.wipeData()` را صدا می‌زند (`CommandExecutor.kt`)؛ اگر فعال نباشد، دلیل
   دقیق (نیاز به فعال‌سازی) در FAILED گزارش می‌شود.
-- دستورات نیازمند Device Owner کامل (`set_screen_time_limit`، `block_app`، `unblock_app`،
-  `sleep_mode_enable/disable`) صادقانه `FAILED` گزارش می‌شوند با دلیل مشخص — نه ادعای اجرای
-  ساختگی. `unlock_device` در هیچ حالتی (حتی Device Owner) از طریق API اندروید ممکن نیست؛ این
-  محدودیت پلتفرم است، نه کمبود پیاده‌سازی — همیشه FAILED با همین توضیح گزارش می‌شود.
+- **Device Owner واقعی برای مسدودسازی اپ/حالت خواب/محدودیت زمان صفحه**: `admin/DeviceOwnerStatus.kt`
+  وضعیت واقعی را مستقیماً از `DevicePolicyManager.isDeviceOwnerApp()` می‌خواند (نه ادعا). وقتی
+  فعال باشد:
+  - `block_app`/`unblock_app`: با `DevicePolicyManager.setApplicationHidden` (`admin/AppSuspension.kt`)
+    یک اپ مشخص (از `payload.packageName`) را پنهان/بازمی‌گرداند.
+  - `sleep_mode_enable`/`sleep_mode_disable`: با `DevicePolicyManager.setPackagesSuspended` همه
+    اپ‌های قابل‌اجرای کاربر (به‌جز خود Device Agent) را تعلیق/رفع‌تعلیق می‌کند.
+  - `set_screen_time_limit`: چون اندروید هیچ API مستقیمی برای «محدودیت زمان روزانه» ندارد، مقدار
+    `payload.screenTimeMinutesPerDay` در `SecureStore` ذخیره می‌شود و `ScreenTimeEnforcementWorker`
+    (هر ۱۵ دقیقه) با `UsageStatsManager` زمان Foreground امروز را جمع می‌زند و در صورت عبور از حد،
+    همه اپ‌ها را با همان `AppSuspension` تعلیق می‌کند — این Worker علاوه بر Device Owner، نیازمند
+    دسترسی دستی «Usage Access» است (زیر را ببینید).
+  - اگر Device Owner فعال نباشد، هر پنج دستور بالا صادقانه `FAILED` با دلیل مشخص گزارش می‌شوند — نه
+    ادعای اجرای ساختگی.
+  - **فعال‌سازی Device Owner در این نسخه** — بدون زیرساخت میزبانی APK عمومی برای QR/Zero-Touch
+    Provisioning واقعی، تنها مسیر واقعی و تایید‌شده همین است (روی دستگاه/امولاتوری که هنوز هیچ
+    حسابی به آن اضافه نشده):
+    ```
+    adb shell dpm set-device-owner com.aifamily.deviceagent/.admin.DeviceAgentAdminReceiver
+    ```
+    بعد از اجرای موفق، دستگاه خودش (نه والد، نه سرور) در Poll بعدی `CommandPollWorker` وضعیت واقعی
+    را با `PATCH /devices/management-mode` به بک‌اند گزارش می‌دهد؛ `Device.managementMode`
+    سمت سرور صرفاً بازتاب‌دهنده همین گزارش دستگاه است و پیش‌نیاز صف‌شدن پنج دستور بالاست
+    (`DEVICE_OWNER_ONLY_COMMANDS` در `device-command.entity.ts`).
+  - **دسترسی Usage Access**: `PACKAGE_USAGE_STATS` یک مجوز AppOps خاص است که حتی با Device Owner
+    هم از طریق دیالوگ معمولی اعطا نمی‌شود؛ کاربر باید دستی از دکمه «فعال‌سازی دسترسی Usage Access»
+    در صفحه اصلی (که `Settings.ACTION_USAGE_ACCESS_SETTINGS` را باز می‌کند) آن را فعال کند — بدون
+    آن، `ScreenTimeEnforcementWorker` بدون خطا اما بدون اجرای واقعی محدودیت خارج می‌شود.
+- `unlock_device` در هیچ حالتی (حتی Device Owner) از طریق API اندروید ممکن نیست؛ این محدودیت
+  پلتفرم است، نه کمبود پیاده‌سازی — همیشه FAILED با همین توضیح گزارش می‌شود.
 
 ## آیتم باز شناخته‌شده (پیشین) — Enrollment با QR: حل شد
 
@@ -44,8 +71,26 @@
 
 نسخه قبلی این بخش می‌گفت `lock_device`/`wipe_data` نیازمند Device Owner Mode‌اند که هنوز اضافه
 نشده. اکنون مشخص شد این دو دستور مشخصاً با Device Admin عادی (بدون Provisioning) هم ممکن‌اند و
-پیاده‌سازی شدند — جزئیات بالا. آیتم باز واقعی، Device Owner Mode کامل برای بقیه دستورات (زیر)،
-هنوز به قوت خودش باقی است.
+پیاده‌سازی شدند — جزئیات بالا.
+
+## آیتم باز شناخته‌شده (پیشین) — Device Owner Mode کامل: کد اجرا شده، Provisioning واقعی همچنان باز
+
+نسخه‌های قبلی این بخش می‌گفتند `set_screen_time_limit`/`block_app`/`unblock_app`/
+`sleep_mode_enable/disable` اصلاً پیاده‌سازی نشده‌اند. اکنون کد واقعی این پنج دستور (با
+`DevicePolicyManager.setApplicationHidden`/`setPackagesSuspended` و `UsageStatsManager`) نوشته و
+کامپایل شده است — جزئیات بالا. با این حال، **این بخش صادقانه مرز دقیق تایید‌شده را مشخص می‌کند**:
+
+- تایید‌شده (کامپایل/Build در CI، `./gradlew assembleDebug`؛ منطق تایید امضا و پارس Payload با
+  تست واحد JVM): کد هر پنج دستور، گزارش‌دهی `managementMode` به بک‌اند، و Gate سمت سرور
+  (`DEVICE_OWNER_ONLY_COMMANDS`).
+- **تایید‌نشده در CI** (نیازمند دستگاه/امولاتور واقعی با Device Owner فعال، که در GitHub Actions
+  به‌صورت معنادار ممکن نیست): آیا فعال‌سازی واقعی `dpm set-device-owner` روی یک دستگاه واقعی کار
+  می‌کند، آیا `setApplicationHidden`/`setPackagesSuspended` واقعاً اپی را روی یک دستگاه واقعی
+  مسدود می‌کنند، و آیا `ScreenTimeEnforcementWorker` بعد از اعطای دستی Usage Access واقعاً محدودیت
+  را اعمال می‌کند. اینها باید روی یک دستگاه/امولاتور واقعی دستی تست شوند.
+- Zero-Touch/QR Provisioning واقعی هنگام Factory Reset (مسیر استاندارد توزیع در دنیای واقعی)
+  همچنان پیاده‌سازی نشده — نیازمند میزبانی APK در یک آدرس عمومی پایدار است که این پروژه زیرساخت آن
+  را ندارد. مسیر ADB بالا جایگزین واقعی و مستند آن برای این نسخه MVP است.
 
 ## آیتم باز شناخته‌شده (پیشین) — Ed25519: حل شد
 
@@ -58,11 +103,11 @@ Entity Device) هنوز یک آیتم باز جداگانه و بزرگ‌تر �
 
 ## آیتم‌های باز (صادقانه، نه ادعای کامل بودن)
 
-1. **Device Owner Mode کامل**: برای اجرای واقعی `set_screen_time_limit`/`block_app`/
-   `unblock_app`/`sleep_mode_enable/disable` باید Provisioning کامل (QR Provisioning هنگام
-   Factory Reset + `DevicePolicyManager.setDeviceOwner`) اضافه شود — این یک QR Provisioning
-   جداست (مخصوص Factory Reset، قبل از هر Setup)، نه همان QR Enrollment یا Device Admin عادی که
-   قبلاً حل شدند.
+1. **Zero-Touch/QR Provisioning واقعی هنگام Factory Reset**: کد اجرای پنج دستور Device
+   Owner-محور نوشته شده (بالا)، اما فعال‌سازی واقعی Device Owner در این نسخه فقط از طریق ADB
+   ممکن است، نه از طریق QR هنگام Factory Reset (نیازمند میزبانی APK در آدرس عمومی که این پروژه
+   ندارد) — و رفتار واقعی روی دستگاه فیزیکی (نه فقط کامپایل) در CI تایید نشده است (جزئیات در بخش
+   بالا).
 2. **ابلاغ Real-Time**: فعلاً فقط Polling هر ۱۵ دقیقه‌ای وجود دارد؛ FCM Push برای ابلاغ فوری (مثل
    SYNC_POLICY) هنوز اضافه نشده — این نیازمند یک حساب/پروژه Firebase واقعی است که هنوز تصمیم‌گیری
    نشده (تصمیمی که آگاهانه به کاربر پروژه واگذار شده، نه چیزی که بی‌صدا گرفته شود).
