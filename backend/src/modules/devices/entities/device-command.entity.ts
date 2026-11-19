@@ -6,7 +6,7 @@ import { Family } from "../../family/entities/family.entity";
 /**
  * Command Matrix — طبق فصل ۳۷ Blueprint نهایی. هر نوع دستور، نیازمندی Device Owner خودش را دارد؛
  * دستوراتی که واقعاً به DevicePolicyManager API های محدود به Device/Profile Owner نیاز دارند
- * (BLOCK_APP/UNBLOCK_APP/SLEEP_MODE_*/SET_SCREEN_TIME_LIMIT) باید قبل از صف‌شدن در Standard Mode
+ * (BLOCK_APP/UNBLOCK_APP/SLEEP_MODE_ENABLE/SLEEP_MODE_DISABLE/SET_SCREEN_TIME_LIMIT) باید قبل از صف‌شدن در Standard Mode
  * رد شوند — نه فقط بعداً توسط خود Device Agent FAILED گزارش شوند (Fail Closed سمت سرور).
  */
 export enum CommandType {
