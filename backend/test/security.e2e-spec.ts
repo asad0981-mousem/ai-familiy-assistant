@@ -236,4 +236,49 @@ describe("Security invariants (e2e)", () => {
       expect(res.body.status).toBe("queued");
     });
   });
+
+  describe("FCM Push — گزارش توکن و Graceful Degradation", () => {
+    it("والد نمی‌تواند توکن FCM را تنظیم کند؛ فقط خود دستگاه مجاز است", async () => {
+      const family = await registerFamily("FCM1");
+      const child = await createChild(family.accessToken);
+      const device = await enrollDevice(family.accessToken, child);
+
+      const forbidden = await request(app.getHttpServer())
+        .patch("/api/v1/devices/fcm-token")
+        .set("Authorization", `Bearer ${family.accessToken}`)
+        .send({ fcmToken: "fake-token-should-be-rejected" });
+      expect(forbidden.status).toBe(403);
+
+      await request(app.getHttpServer())
+        .patch("/api/v1/devices/fcm-token")
+        .set("Authorization", `Bearer ${device.deviceToken}`)
+        .send({ fcmToken: "ci-test-fcm-token-value" })
+        .expect(200);
+    });
+
+    it(
+      "صدور دستور حتی وقتی FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 تنظیم نشده (مثل این محیط CI) " +
+        "همچنان موفق است — Push فقط بهینه‌سازی تاخیر است، نه پیش‌نیاز درستی (PushNotificationService " +
+        "باید به‌صورت no-op اجرا شود، نه این‌که ایجاد دستور را Throw/مسدود کند)",
+      async () => {
+        const family = await registerFamily("FCM2");
+        const child = await createChild(family.accessToken);
+        const device = await enrollDevice(family.accessToken, child);
+
+        await request(app.getHttpServer())
+          .patch("/api/v1/devices/fcm-token")
+          .set("Authorization", `Bearer ${device.deviceToken}`)
+          .send({ fcmToken: "ci-test-fcm-token-value" })
+          .expect(200);
+
+        const res = await request(app.getHttpServer())
+          .post(`/api/v1/devices/${device.deviceId}/commands`)
+          .set("Authorization", `Bearer ${family.accessToken}`)
+          .send({ type: "lock_device" })
+          .expect(201);
+
+        expect(res.body.status).toBe("queued");
+      },
+    );
+  });
 });

@@ -66,6 +66,19 @@ class DeviceApiClient(private val baseUrl: String, private val deviceToken: Stri
         execute(request)
     }
 
+    /**
+     * PATCH /devices/fcm-token — بعد از دریافت واقعی توکن از Firebase SDK
+     * (FirebaseMessaging.getInstance().token یا AiFamilyMessagingService.onNewToken). برای ابلاغ
+     * Real-Time (مکمل CommandPollWorker، نه جایگزین آن) استفاده می‌شود.
+     */
+    fun updateFcmToken(fcmToken: String) {
+        val json = JSONObject().apply { put("fcmToken", fcmToken) }
+        val request = authorizedRequest("devices/fcm-token")
+            .patch(json.toString().toRequestBody(jsonMediaType))
+            .build()
+        execute(request)
+    }
+
     /** GET /policies/current — دریافت آخرین Policy برای اعمال محلی بعد از SYNC_POLICY. */
     fun fetchCurrentPolicy(): JSONObject {
         val request = authorizedRequest("policies/current").get().build()

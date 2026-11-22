@@ -14,7 +14,22 @@
   نتیجه نهایی (آدرس سرور + Device Token) در `EncryptedSharedPreferences` (پشتیبان Android
   Keystore) ذخیره می‌شود.
 - **CommandPollWorker**: هر ۱۵ دقیقه (حداقل بازه واقعی `PeriodicWorkRequest` در اندروید) `GET
-  /devices/commands/pending` را صدا می‌زند.
+  /devices/commands/pending` را صدا می‌زند — این مسیر قابل‌اطمینان اصلی ابلاغ دستور است و با یا
+  بدون FCM Push (زیر) کار می‌کند.
+- **FCM Push برای ابلاغ فوری (مکمل، نه جایگزین Polling)**: `push/AiFamilyMessagingService.kt`
+  (`FirebaseMessagingService`) توکن FCM را با `PATCH /devices/fcm-token` گزارش می‌دهد
+  (`onNewToken`، به‌علاوه یک تلاش اضافه در `MainActivity.onCreate` برای توکنی که قبل از Enrollment
+  از قبل وجود داشته)، و با دریافت هر Push (Data-only، بدون Notification قابل‌رویت) بلافاصله یک
+  اجرای یک‌باره (نه دوره‌ای) از همان `CommandPollWorker` صف می‌کند — یعنی تاخیر ابلاغ از حداکثر ۱۵
+  دقیقه به تقریباً آنی می‌رسد، اما اعتماد همچنان فقط از همان Pull امضاشده می‌آید (محتوای خود Push
+  هرگز مستقیماً به‌عنوان دستور اجرا نمی‌شود). بک‌اند هم بعد از صف‌شدن هر دستور، تلاش Best-Effort
+  برای ارسال این Push انجام می‌دهد (`common/push/push-notification.service.ts`).
+  **محدودیت صادقانه**: `app/google-services.json` این پوشه یک Placeholder ساختاری-معتبر است (فقط
+  برای موفق‌شدن Build/CI)، نه پروژه واقعی Firebase — جزئیات کامل و مراحل فعال‌سازی واقعی در
+  `app/google-services.json.README.md`. بدون یک پروژه واقعی، این سرویس هرگز توکن واقعی دریافت
+  نمی‌کند و `onMessageReceived` هرگز صدا زده نمی‌شود؛ کد کامپایل/Build می‌شود و منطق Graceful
+  Degradation سمت بک‌اند (وقتی `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64` تنظیم نشده) در CI تایید شده
+  است، اما ابلاغ واقعی End-to-End یک Push دستی تست نشده.
 - **تایید محلی امضای Ed25519** هر دستور (`CommandSigner.kt`، با کتابخانه Pure Java
   `net.i2p.crypto:eddsa`) — پورت دقیق Kotlin از `backend/src/common/crypto/command-signer.service.ts`،
   با یک تست مقدار طلایی مشترک بین هر دو زبان (`CommandSignerTest.kt` ⇄
@@ -108,9 +123,13 @@ Entity Device) هنوز یک آیتم باز جداگانه و بزرگ‌تر �
    ممکن است، نه از طریق QR هنگام Factory Reset (نیازمند میزبانی APK در آدرس عمومی که این پروژه
    ندارد) — و رفتار واقعی روی دستگاه فیزیکی (نه فقط کامپایل) در CI تایید نشده است (جزئیات در بخش
    بالا).
-2. **ابلاغ Real-Time**: فعلاً فقط Polling هر ۱۵ دقیقه‌ای وجود دارد؛ FCM Push برای ابلاغ فوری (مثل
-   SYNC_POLICY) هنوز اضافه نشده — این نیازمند یک حساب/پروژه Firebase واقعی است که هنوز تصمیم‌گیری
-   نشده (تصمیمی که آگاهانه به کاربر پروژه واگذار شده، نه چیزی که بی‌صدا گرفته شود).
+2. **ابلاغ Real-Time با FCM Push — کد کامل است، اتصال به پروژه واقعی Firebase باز است**: کد کامل
+   (Device Agent + بک‌اند، جزئیات بالا) نوشته و در CI کامپایل/Build شده. آنچه باز مانده صرفاً
+   جایگزینی `app/google-services.json` Placeholder با فایل واقعی پروژه Firebase کاربر، و تنظیم
+   `FIREBASE_SERVICE_ACCOUNT_JSON_BASE64` روی بک‌اند است (هر دو نیازمند یک حساب Google/Firebase
+   واقعی‌اند که فقط کاربر پروژه می‌تواند بسازد — تصمیمی که آگاهانه به او واگذار شده، نه چیزی که
+   بی‌صدا یا با مقادیر جعلی گرفته شود). تا آن زمان، ابلاغ همچنان کاملاً از طریق Polling هر ۱۵
+   دقیقه‌ای (قابل‌اطمینان و تست‌شده) انجام می‌شود.
 3. **کلید Ed25519 سراسری، نه به‌ازای هر دستگاه**: همان‌طور که بالا گفته شد، همه نسخه‌های Device
    Agent یک کلید عمومی مشترک دارند؛ اگر کلید خصوصی سرور لو برود، همه دستگاه‌ها باید با Build جدید
    به‌روزرسانی شوند (چرخش یکباره، نه به‌ازای هر دستگاه).

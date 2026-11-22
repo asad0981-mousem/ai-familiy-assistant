@@ -7,10 +7,14 @@
 // استثنای آگاهانه دوم: net.i2p.crypto:eddsa — پشتیبانی بومی Ed25519 در اندروید فقط از API 33
 // به بعد اضافه شده (minSdk این اپ ۲۶ است)، پس برای تایید امضای Ed25519 دستورات سرور (جایگزین
 // HMAC قبلی) یک کتابخانه Pure Java سبک و بدون وابستگی اضافه لازم بود.
+// استثنای آگاهانه سوم: Firebase Cloud Messaging (firebase-messaging-ktx) — برای ابلاغ Real-Time
+// مکمل CommandPollWorker. google-services.json این پوشه یک Placeholder ساختاری معتبر است (برای
+// موفق‌شدن Build/CI)، نه یک پروژه واقعی Firebase — محدودیت صادقانه کامل در README این پوشه.
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -95,6 +99,12 @@ dependencies {
     // Ed25519 — تایید امضای دستورات سرور؛ Pure Java (بدون وابستگی native)، پس در تست خالص JVM
     // (./gradlew test) هم قابل استفاده است، نه فقط Instrumented Test.
     implementation("net.i2p.crypto:eddsa:0.3.0")
+
+    // FCM Push — ابلاغ Real-Time (مکمل CommandPollWorker، نه جایگزین). BoM نسخه همه artifact های
+    // Firebase را هماهنگ می‌کند؛ فقط firebase-messaging-ktx لازم است (نه Analytics/Crashlytics و...)
+    // چون این اپ عمداً حداقلی نگه داشته شده (بدون نیاز به یک فریمورک تحلیلی جداگانه).
+    implementation(platform("com.google.firebase:firebase-bom:34.16.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

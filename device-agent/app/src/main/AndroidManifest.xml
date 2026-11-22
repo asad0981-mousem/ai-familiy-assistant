@@ -59,6 +59,19 @@
             android:exported="false"
             android:screenOrientation="portrait" />
 
+        <!--
+            FCM Push (ابلاغ Real-Time، مکمل CommandPollWorker) — فقط وقتی واقعاً اثر دارد که
+            google-services.json کنار این فایل با پروژه واقعی Firebase جایگزین شده باشد (محدودیت
+            صادقانه مستندشده در app/google-services.json.README.md و README این پوشه).
+        -->
+        <service
+            android:name=".push.AiFamilyMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".admin.DeviceAgentAdminReceiver"
             android:exported="true"

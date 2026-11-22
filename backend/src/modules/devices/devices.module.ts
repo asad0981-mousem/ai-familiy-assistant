@@ -7,6 +7,7 @@ import { DeviceCommand } from "./entities/device-command.entity";
 import { DevicesService } from "./devices.service";
 import { DevicesController } from "./devices.controller";
 import { CommandSignerService } from "../../common/crypto/command-signer.service";
+import { PushNotificationService } from "../../common/push/push-notification.service";
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { CommandSignerService } from "../../common/crypto/command-signer.service
       }),
     }),
   ],
-  providers: [DevicesService, CommandSignerService],
+  providers: [DevicesService, CommandSignerService, PushNotificationService],
   controllers: [DevicesController],
   exports: [DevicesService],
 })

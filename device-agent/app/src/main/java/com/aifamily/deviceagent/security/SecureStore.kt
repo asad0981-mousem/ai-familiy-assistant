@@ -47,6 +47,15 @@ class SecureStore(context: Context) {
         set(value) = prefs.edit().putString(KEY_LAST_REPORTED_MANAGEMENT_MODE, value).apply()
 
     /**
+     * آخرین توکن FCM‌ای که با موفقیت به بک‌اند گزارش شده — برای جلوگیری از گزارش تکراری همان توکن.
+     * AiFamilyMessagingService.onNewToken فقط وقتی فرق دارد (یا قبلاً هرگز گزارش نشده) API را
+     * صدا می‌زند.
+     */
+    var lastReportedFcmToken: String?
+        get() = prefs.getString(KEY_LAST_REPORTED_FCM_TOKEN, null)
+        set(value) = prefs.edit().putString(KEY_LAST_REPORTED_FCM_TOKEN, value).apply()
+
+    /**
      * محدودیت روزانه زمان صفحه (دقیقه) — توسط SET_SCREEN_TIME_LIMIT تنظیم و توسط
      * ScreenTimeEnforcementWorker خوانده می‌شود. null یعنی هیچ محدودیتی تنظیم نشده.
      */
@@ -67,6 +76,7 @@ class SecureStore(context: Context) {
         private const val KEY_DEVICE_TOKEN = "device_token"
         private const val KEY_API_BASE_URL = "api_base_url"
         private const val KEY_LAST_REPORTED_MANAGEMENT_MODE = "last_reported_management_mode"
+        private const val KEY_LAST_REPORTED_FCM_TOKEN = "last_reported_fcm_token"
         private const val KEY_SCREEN_TIME_LIMIT_MINUTES = "screen_time_limit_minutes"
         private const val KEY_SCREEN_TIME_LIMIT_APPLIED_DATE = "screen_time_limit_applied_date"
     }

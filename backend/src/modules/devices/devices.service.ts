@@ -25,8 +25,10 @@ import { EnrollDeviceDto } from "./dto/enroll-device.dto";
 import { CreateCommandDto } from "./dto/create-command.dto";
 import { AckCommandDto } from "./dto/ack-command.dto";
 import { UpdateManagementModeDto } from "./dto/update-management-mode.dto";
+import { UpdateFcmTokenDto } from "./dto/update-fcm-token.dto";
 import { JwtPayload } from "../auth/strategies/jwt.strategy";
 import { CommandSignerService } from "../../common/crypto/command-signer.service";
+import { PushNotificationService } from "../../common/push/push-notification.service";
 
 const COMMAND_EXPIRY_MS = 24 * 60 * 60 * 1000; // ۲۴ ساعت — طبق فصل ۹ Offline Architecture
 
@@ -39,6 +41,7 @@ export class DevicesService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly signer: CommandSignerService,
+    private readonly push: PushNotificationService,
   ) {}
 
   /** فقط والد می‌تواند دستگاه جدید برای فرزند خودش ثبت‌نام کند. */
@@ -108,6 +111,7 @@ export class DevicesService {
       requester.sub,
       dto.type,
       dto.payload || {},
+      device.fcmToken,
     );
   }
 
@@ -131,18 +135,31 @@ export class DevicesService {
     const results: DeviceCommand[] = [];
     for (const device of activeDevices) {
       results.push(
-        await this.enqueueSignedCommand(familyId, device.id, issuedByUserId, type, payload),
+        await this.enqueueSignedCommand(
+          familyId,
+          device.id,
+          issuedByUserId,
+          type,
+          payload,
+          device.fcmToken,
+        ),
       );
     }
     return results;
   }
 
+  /**
+   * notifyFcmToken اختیاری است و فقط برای بهینه‌سازی تاخیر Push استفاده می‌شود — شکست یا نبود آن
+   * هرگز مانع ایجاد/صف‌شدن خود دستور نمی‌شود (push.notifyWakeUp هرگز reject نمی‌کند، جزئیات در
+   * PushNotificationService).
+   */
   private async enqueueSignedCommand(
     familyId: string,
     deviceId: string,
     issuedByUserId: string,
     type: CommandType,
     payload: Record<string, unknown>,
+    notifyFcmToken?: string | null,
   ): Promise<DeviceCommand> {
     const idempotencyKey = randomUUID();
     const signaturePayload = { deviceId, type, payload, idempotencyKey };
@@ -160,7 +177,9 @@ export class DevicesService {
       expiresAt: new Date(Date.now() + COMMAND_EXPIRY_MS),
     });
 
-    return this.commands.save(command);
+    const saved = await this.commands.save(command);
+    void this.push.notifyWakeUp(notifyFcmToken);
+    return saved;
   }
 
   /** Device Agent با توکن device این Endpoint را Poll می‌کند (Outbox Pull Pattern — I-C02). */
@@ -247,6 +266,25 @@ export class DevicesService {
     }
 
     device.managementMode = dto.managementMode;
+    return this.devices.save(device);
+  }
+
+  /**
+   * گزارش توکن FCM از خود Device Agent — بعد از دریافت واقعی از Firebase SDK (onNewToken یا
+   * FirebaseMessaging.getInstance().token). مثل management-mode، والد مجاز به تنظیم این مقدار
+   * نیست — فقط دستگاه می‌تواند توکن خودش را گزارش دهد.
+   */
+  async updateFcmToken(deviceToken: JwtPayload, dto: UpdateFcmTokenDto): Promise<Device> {
+    if (deviceToken.role !== "device") {
+      throw new ForbiddenException("فقط Device Agent مجاز است");
+    }
+
+    const device = await this.devices.findOne({ where: { id: deviceToken.sub } });
+    if (!device) {
+      throw new NotFoundException("دستگاه یافت نشد");
+    }
+
+    device.fcmToken = dto.fcmToken;
     return this.devices.save(device);
   }
 

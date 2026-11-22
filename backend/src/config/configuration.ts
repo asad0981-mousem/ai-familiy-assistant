@@ -37,6 +37,14 @@ export interface AppConfig {
   commandSigning: {
     privateKeyHex: string;
   };
+  firebase: {
+    // سرویس‌حساب (Service Account) پروژه واقعی Firebase، Base64-encoded، فقط برای ارسال واقعی
+    // FCM Push — محرمانه است، هرگز در کد Commit نمی‌شود؛ فقط از متغیر محیطی/GitHub Secret خوانده
+    // می‌شود. اگر تنظیم نشده باشد (مثلاً در CI یا توسعه محلی)، PushNotificationService به‌صورت
+    // صریح و صادقانه در حالت no-op اجرا می‌شود (بدون ارسال واقعی، بدون کرش کردن بقیه سیستم) —
+    // جزئیات در common/push/push-notification.service.ts.
+    serviceAccountJsonBase64: string;
+  };
 }
 
 export default (): AppConfig => ({
@@ -77,5 +85,8 @@ export default (): AppConfig => ({
   // توسعه محلی است — صراحتاً ناامن، باید در Production با یک Seed تصادفی واقعی ۳۲ بایتی جایگزین شود.
   commandSigning: {
     privateKeyHex: process.env.COMMAND_SIGNING_PRIVATE_KEY_HEX || "02".repeat(32),
+  },
+  firebase: {
+    serviceAccountJsonBase64: process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 || "",
   },
 });

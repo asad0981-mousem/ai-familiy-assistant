@@ -81,4 +81,13 @@ export class Device extends BaseEntity {
 
   @Column({ name: "last_seen_at", type: "timestamptz", nullable: true })
   lastSeenAt?: Date | null;
+
+  /**
+   * توکن ثبت‌نام FCM دستگاه — فقط خود Device Agent (بعد از خواندن واقعی از Firebase SDK) آن را با
+   * PATCH /devices/fcm-token گزارش می‌دهد. استفاده: ابلاغ فوری «همین الان Poll کن» به دستگاه به‌جای
+   * انتظار تا ۱۵ دقیقه بعدی CommandPollWorker — صرفاً بهینه‌سازی تاخیر، نه جایگزین Outbox Pull
+   * Pattern (قابلیت اطمینان همچنان از همان Pull می‌آید، نه از رسیدن تضمینی Push).
+   */
+  @Column({ name: "fcm_token", type: "varchar", length: 255, nullable: true })
+  fcmToken?: string | null;
 }

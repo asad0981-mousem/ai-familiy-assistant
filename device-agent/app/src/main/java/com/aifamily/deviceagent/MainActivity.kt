@@ -16,9 +16,14 @@ import androidx.core.content.ContextCompat
 import com.aifamily.deviceagent.admin.DeviceAgentAdminReceiver
 import com.aifamily.deviceagent.admin.DeviceOwnerStatus
 import com.aifamily.deviceagent.databinding.ActivityMainBinding
+import com.aifamily.deviceagent.network.DeviceApiClient
 import com.aifamily.deviceagent.security.SecureStore
 import com.aifamily.deviceagent.work.CommandPollWorker
 import com.aifamily.deviceagent.work.ScreenTimeEnforcementWorker
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * صفحه وضعیت اصلی — بعد از Enrollment نمایش داده می‌شود. وضعیت Polling دوره‌ای را نشان می‌دهد،
@@ -60,6 +65,29 @@ class MainActivity : AppCompatActivity() {
         requestRuntimePermissions()
         CommandPollWorker.schedule(applicationContext)
         ScreenTimeEnforcementWorker.schedule(applicationContext)
+        reportCurrentFcmTokenIfNeeded()
+    }
+
+    /**
+     * علاوه بر AiFamilyMessagingService.onNewToken (که فقط وقتی توکن *تغییر* کند صدا زده می‌شود)،
+     * اینجا هم توکن فعلی را می‌خوانیم — برای حالتی که توکن قبل از Enrollment یا قبل از نصب مجدد
+     * اپ از قبل وجود داشته و onNewToken دیگر صدا زده نمی‌شود. با google-services.json واقعی کار
+     * می‌کند؛ با Placeholder فعلی این فراخوانی شکست می‌خورد و بی‌صدا نادیده گرفته می‌شود.
+     */
+    private fun reportCurrentFcmTokenIfNeeded() {
+        val deviceToken = secureStore.deviceToken ?: return
+        val baseUrl = secureStore.apiBaseUrl ?: return
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) return@addOnCompleteListener
+            val fcmToken = task.result ?: return@addOnCompleteListener
+            if (secureStore.lastReportedFcmToken == fcmToken) return@addOnCompleteListener
+
+            CoroutineScope(Dispatchers.IO).launch {
+                runCatching { DeviceApiClient(baseUrl, deviceToken).updateFcmToken(fcmToken) }
+                    .onSuccess { secureStore.lastReportedFcmToken = fcmToken }
+            }
+        }
     }
 
     override fun onResume() {

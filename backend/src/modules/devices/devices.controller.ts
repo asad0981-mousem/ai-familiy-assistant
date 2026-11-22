@@ -9,6 +9,7 @@ import { EnrollDeviceDto } from "./dto/enroll-device.dto";
 import { CreateCommandDto } from "./dto/create-command.dto";
 import { AckCommandDto } from "./dto/ack-command.dto";
 import { UpdateManagementModeDto } from "./dto/update-management-mode.dto";
+import { UpdateFcmTokenDto } from "./dto/update-fcm-token.dto";
 
 @Controller({ path: "devices", version: "1" })
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -67,5 +68,15 @@ export class DevicesController {
   @Roles("device")
   updateManagementMode(@CurrentUser() user: JwtPayload, @Body() dto: UpdateManagementModeDto) {
     return this.devicesService.updateManagementMode(user, dto);
+  }
+
+  /**
+   * فقط خود Device Agent این مسیر را صدا می‌زند — بعد از دریافت واقعی توکن FCM از Firebase SDK.
+   * برای ابلاغ Real-Time (تکمیلی، نه جایگزین Outbox Pull Pattern) استفاده می‌شود.
+   */
+  @Patch("fcm-token")
+  @Roles("device")
+  updateFcmToken(@CurrentUser() user: JwtPayload, @Body() dto: UpdateFcmTokenDto) {
+    return this.devicesService.updateFcmToken(user, dto);
   }
 }
