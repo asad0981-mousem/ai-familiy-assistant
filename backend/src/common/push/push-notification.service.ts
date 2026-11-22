@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as admin from "firebase-admin";
+import { App, cert, getApps, initializeApp, ServiceAccount } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 
 /**
  * ابلاغ Real-Time با FCM Push — مکمل Outbox Pull Pattern موجود (CommandPollWorker هر ۱۵ دقیقه)،
@@ -20,7 +21,7 @@ import * as admin from "firebase-admin";
 @Injectable()
 export class PushNotificationService {
   private readonly logger = new Logger(PushNotificationService.name);
-  private readonly app: admin.app.App | null;
+  private readonly app: App | null;
   private warnedOnce = false;
 
   constructor(config: ConfigService) {
@@ -51,7 +52,7 @@ export class PushNotificationService {
     }
 
     try {
-      await this.app.messaging().send({
+      await getMessaging(this.app).send({
         token: fcmToken,
         data: { type: "wake_up_and_poll" },
         android: { priority: "high" },
@@ -66,16 +67,16 @@ export class PushNotificationService {
 
 const FIREBASE_APP_NAME = "aifamily-push";
 
-function initializeFirebaseApp(serviceAccountJsonBase64: string, logger: Logger): admin.app.App | null {
+function initializeFirebaseApp(serviceAccountJsonBase64: string, logger: Logger): App | null {
   try {
     // نام اختصاصی App (نه Default) تا چند نمونه‌سازی این سرویس در یک پردازش (مثلاً چند تست واحد
     // پشت‌سرهم) با خطای "already exists" برخورد نکند — نمونه قبلی همان نام را دوباره استفاده می‌کند.
-    const existing = admin.apps.find((a) => a?.name === FIREBASE_APP_NAME);
+    const existing = getApps().find((a) => a.name === FIREBASE_APP_NAME);
     if (existing) return existing;
 
     const json = Buffer.from(serviceAccountJsonBase64, "base64").toString("utf8");
-    const serviceAccount = JSON.parse(json) as admin.ServiceAccount;
-    return admin.initializeApp({ credential: admin.credential.cert(serviceAccount) }, FIREBASE_APP_NAME);
+    const serviceAccount = JSON.parse(json) as ServiceAccount;
+    return initializeApp({ credential: cert(serviceAccount) }, FIREBASE_APP_NAME);
   } catch (error) {
     // FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 تنظیم شده ولی نامعتبر است — صادقانه به no-op برمی‌گردیم
     // به‌جای کرش‌کردن کل بک‌اند روی یک قابلیت کمکی.
