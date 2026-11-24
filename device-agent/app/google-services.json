@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "aifamily-placeholder-project",
-    "storage_bucket": "aifamily-placeholder-project.appspot.com"
+    "project_number": "413622410932",
+    "project_id": "ai-family-assistant-a9ad8",
+    "storage_bucket": "ai-family-assistant-a9ad8.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:413622410932:android:cc60e465e16e7534e901e1",
         "android_client_info": {
           "package_name": "com.aifamily.deviceagent"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "PLACEHOLDER_NOT_A_REAL_API_KEY"
+          "current_key": "AIzaSyBoVanMZTXIFNBlO4hYi9fXNejdxwbwwNY"
         }
       ],
       "services": {
